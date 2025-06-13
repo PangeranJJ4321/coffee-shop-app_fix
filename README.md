@@ -71,7 +71,7 @@ coffee-shop-app/
 
 1. **Clone repository**
    ```bash
-   git clone <repository-url>
+   git clone <https://github.com/PangeranJJ4321/coffee-shop-app_fix>
    cd coffee-shop-app
    ```
 
