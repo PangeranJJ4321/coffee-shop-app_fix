@@ -30,6 +30,9 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 
+// Error Pages
+import NotFoundPage from './pages/NotFoundPage';
+
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
@@ -66,6 +69,9 @@ function App() {
                   <Route path="/admin/orders" element={<OrderManagement />} />
                   <Route path="/admin/users" element={<UserManagement />} />
                   <Route path="/admin/analytics" element={<AnalyticsPage />} />
+                  
+                  {/* 404 Catch-all Route */}
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </main>
               <Footer />
