@@ -11,8 +11,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Separator } from '@/components/ui/separator';
 import { 
   Coffee, 
   ShoppingCart, 
@@ -23,7 +27,13 @@ import {
   History,
   Settings,
   LogOut,
-  Shield
+  Shield,
+  Users,
+  Package,
+  BarChart3,
+  ClipboardList,
+  Sliders,
+  ChevronRight
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -41,6 +51,87 @@ const Navbar = () => {
   const isActivePath = (path) => {
     return location.pathname === path;
   };
+
+  const isActiveAdminPath = (path) => {
+    return location.pathname.startsWith(path);
+  };
+
+  const AdminNavLinks = ({ mobile = false, onLinkClick = () => {} }) => (
+    <>
+      <Link
+        to="/admin"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          isActivePath('/admin') 
+            ? 'bg-primary text-primary-foreground' 
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+        } ${mobile ? 'w-full' : ''}`}
+        onClick={onLinkClick}
+      >
+        <BarChart3 className="h-4 w-4" />
+        Dashboard
+      </Link>
+      <Link
+        to="/admin/orders"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          isActivePath('/admin/orders') 
+            ? 'bg-primary text-primary-foreground' 
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+        } ${mobile ? 'w-full' : ''}`}
+        onClick={onLinkClick}
+      >
+        <ClipboardList className="h-4 w-4" />
+        Kelola Pesanan
+      </Link>
+      <Link
+        to="/admin/menu"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          isActivePath('/admin/menu') 
+            ? 'bg-primary text-primary-foreground' 
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+        } ${mobile ? 'w-full' : ''}`}
+        onClick={onLinkClick}
+      >
+        <Coffee className="h-4 w-4" />
+        Kelola Menu
+      </Link>
+      <Link
+        to="/admin/variants"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          isActivePath('/admin/variants') 
+            ? 'bg-primary text-primary-foreground' 
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+        } ${mobile ? 'w-full' : ''}`}
+        onClick={onLinkClick}
+      >
+        <Sliders className="h-4 w-4" />
+        Kelola Varian
+      </Link>
+      <Link
+        to="/admin/users"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          isActivePath('/admin/users') 
+            ? 'bg-primary text-primary-foreground' 
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+        } ${mobile ? 'w-full' : ''}`}
+        onClick={onLinkClick}
+      >
+        <Users className="h-4 w-4" />
+        Kelola User
+      </Link>
+      <Link
+        to="/admin/analytics"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          isActivePath('/admin/analytics') 
+            ? 'bg-primary text-primary-foreground' 
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+        } ${mobile ? 'w-full' : ''}`}
+        onClick={onLinkClick}
+      >
+        <BarChart3 className="h-4 w-4" />
+        Analytics
+      </Link>
+    </>
+  );
 
   const NavLinks = ({ mobile = false, onLinkClick = () => {} }) => (
     <>
@@ -82,24 +173,13 @@ const Navbar = () => {
             <History className="h-4 w-4" />
             Riwayat Pesanan
           </Link>
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-                location.pathname.startsWith('/admin') 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'text-foreground hover:bg-accent hover:text-accent-foreground'
-              } ${mobile ? 'w-full' : ''}`}
-              onClick={onLinkClick}
-            >
-              <Shield className="h-4 w-4" />
-              Admin
-            </Link>
-          )}
         </>
       )}
     </>
   );
+
+  // Check if we're in admin area
+  const isInAdminArea = location.pathname.startsWith('/admin');
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -109,17 +189,54 @@ const Navbar = () => {
           <Link to="/" className="flex items-center gap-2 font-bold text-xl">
             <Coffee className="h-6 w-6 text-primary" />
             <span className="text-foreground">Coffee Shop</span>
+            {isInAdminArea && (
+              <Badge variant="secondary" className="ml-2">
+                <Shield className="h-3 w-3 mr-1" />
+                Admin
+              </Badge>
+            )}
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            <NavLinks />
+            {isInAdminArea && isAdmin ? (
+              <AdminNavLinks />
+            ) : (
+              <NavLinks />
+            )}
           </div>
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
-            {/* Cart Button */}
-            {isAuthenticated && (
+            {/* Admin/User Mode Toggle */}
+            {isAuthenticated && isAdmin && (
+              <div className="hidden md:flex items-center gap-2">
+                {!isInAdminArea ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/admin')}
+                    className="flex items-center gap-2"
+                  >
+                    <Shield className="h-4 w-4" />
+                    Admin Panel
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-2"
+                  >
+                    <Home className="h-4 w-4" />
+                    User Mode
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Cart Button - Only show in user mode */}
+            {isAuthenticated && !isInAdminArea && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -152,9 +269,17 @@ const Navbar = () => {
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium">{user?.name}</p>
                       <p className="text-xs text-muted-foreground">{user?.email}</p>
+                      {isAdmin && (
+                        <Badge variant="secondary" className="w-fit">
+                          <Shield className="h-3 w-3 mr-1" />
+                          Admin
+                        </Badge>
+                      )}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  
+                  {/* User Actions */}
                   <DropdownMenuItem onClick={() => navigate('/profile')}>
                     <Settings className="mr-2 h-4 w-4" />
                     Profil
@@ -163,12 +288,46 @@ const Navbar = () => {
                     <History className="mr-2 h-4 w-4" />
                     Riwayat Pesanan
                   </DropdownMenuItem>
+                  
+                  {/* Admin Actions */}
                   {isAdmin && (
-                    <DropdownMenuItem onClick={() => navigate('/admin')}>
-                      <Shield className="mr-2 h-4 w-4" />
-                      Admin Panel
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Shield className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem onClick={() => navigate('/admin')}>
+                            <BarChart3 className="mr-2 h-4 w-4" />
+                            Dashboard
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/orders')}>
+                            <ClipboardList className="mr-2 h-4 w-4" />
+                            Kelola Pesanan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/menu')}>
+                            <Coffee className="mr-2 h-4 w-4" />
+                            Kelola Menu
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/variants')}>
+                            <Sliders className="mr-2 h-4 w-4" />
+                            Kelola Varian
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/users')}>
+                            <Users className="mr-2 h-4 w-4" />
+                            Kelola User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/analytics')}>
+                            <BarChart3 className="mr-2 h-4 w-4" />
+                            Analytics
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    </>
                   )}
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -196,8 +355,59 @@ const Navbar = () => {
               </SheetTrigger>
               <SheetContent side="right" className="w-80">
                 <div className="flex flex-col gap-4 mt-8">
-                  <NavLinks mobile onLinkClick={() => setIsMobileMenuOpen(false)} />
+                  {/* Mode indicator */}
+                  {isInAdminArea && isAdmin && (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span className="font-medium">Mode Admin</span>
+                    </div>
+                  )}
                   
+                  {/* Navigation Links */}
+                  {isInAdminArea && isAdmin ? (
+                    <>
+                      <AdminNavLinks mobile onLinkClick={() => setIsMobileMenuOpen(false)} />
+                      <Separator />
+                      <Button 
+                        variant="outline" 
+                        className="justify-start"
+                        onClick={() => {
+                          navigate('/');
+                          setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        <Home className="mr-2 h-4 w-4" />
+                        Kembali ke User Mode
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <NavLinks mobile onLinkClick={() => setIsMobileMenuOpen(false)} />
+                      
+                      {/* Admin Panel Access for Mobile */}
+                      {isAuthenticated && isAdmin && (
+                        <>
+                          <Separator />
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground px-3">Admin Panel</p>
+                            <Button 
+                              variant="outline" 
+                              className="justify-start w-full"
+                              onClick={() => {
+                                navigate('/admin');
+                                setIsMobileMenuOpen(false);
+                              }}
+                            >
+                              <Shield className="mr-2 h-4 w-4" />
+                              Masuk Admin Panel
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* Auth buttons for non-authenticated users */}
                   {!isAuthenticated && (
                     <div className="flex flex-col gap-2 pt-4 border-t">
                       <Button 
