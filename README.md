@@ -4,7 +4,7 @@ Aplikasi frontend untuk coffee shop yang dibangun menggunakan React.js, Tailwind
 
 ## 🚀 Live Demo
 
-**URL Deployment**: [https://hozwhqpo.manus.space](https://hozwhqpo.manus.space)
+**URL Deployment**: [coffee-shop-app-fix.vercel.app](coffee-shop-app-fix.vercel.app)
 
 ## 📋 Fitur Utama
 
