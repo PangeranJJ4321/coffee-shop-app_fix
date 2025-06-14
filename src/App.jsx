@@ -29,6 +29,7 @@ import AnalyticsPage from './pages/admin/AnalyticsPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import EmailVerificationPage from './pages/auth/EmailVerificationPage';
 
 // Error Pages
 import NotFoundPage from './pages/NotFoundPage';
@@ -54,6 +55,7 @@ function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  <Route path="/verify-email" element={<EmailVerificationPage />} />
                   
                   {/* User Protected Routes */}
                   <Route path="/cart" element={<CartPage />} />
