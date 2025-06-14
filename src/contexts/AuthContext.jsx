@@ -1,6 +1,32 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
+import { tr } from 'date-fns/locale';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
+
+const BASE_API_URL = 'https://ngopiyuk-api.up.railway.app/api/v1';
+
+const api = axios.create({
+  baseURL :BASE_API_URL,
+  headers : {
+    'Content-Type' : 'application/json',
+  },
+});
+
+// Buat Interceptor untuk api yang membutuhkan token
+api.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('access_token'); 
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
+
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -15,103 +41,180 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Mock user data - in real app, this would come from API
-  const mockUsers = [
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john@example.com',
-      phone: '08123456789',
-      role: 'USER',
-      avatar: null
-    },
-    {
-      id: 2,
-      name: 'Admin User',
-      email: 'admin@coffeeshop.com',
-      phone: '08987654321',
-      role: 'ADMIN',
-      avatar: null
-    }
-  ];
+  const saveAuthData = (token, userData) => {
+    localStorage.setItem('access_token', token);
+    localStorage.setItem('user_data', JSON.stringify(userData));
+    setUser(userData);
+    setIsAuthenticated(true);
+  };
+
+  const clearAuthData = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user_data');
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+
 
   useEffect(() => {
-    // Check for stored auth token
-    const token = localStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData');
-    
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-      setIsAuthenticated(true);
-    }
-    
-    setIsLoading(false);
+    const loadUser = async () => {
+      const token = localStorage.getItem('access_token');
+      const userDataString = localStorage.getItem('user_data');
+
+      if (token && userDataString) {
+        try {
+          const storedUser = JSON.stringify(userDataString);
+          // kalau mau disini untuk ambil data usernya pakai endpoint users/me
+          // const response = await api.get('/users/me');
+          // setUser(response.data);
+          setUser(storedUser);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.log("Failed to parse user data from localStorage or validate token:", error);
+          clearAuthData();
+        }
+      }
+      setIsLoading(false);
+    };
+
+    loadUser();
   }, []);
 
   const login = async (email, password) => {
     try {
-      // Mock login - in real app, this would be an API call
-      const foundUser = mockUsers.find(u => u.email === email);
-      
-      if (foundUser && password === 'password') {
-        const token = 'mock-jwt-token-' + foundUser.id;
-        
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('userData', JSON.stringify(foundUser));
-        
-        setUser(foundUser);
-        setIsAuthenticated(true);
-        
-        return { success: true, user: foundUser };
-      } else {
-        return { success: false, error: 'Email atau password salah' };
+
+      const response = await api.post('/auth/login', {email, password});
+      const {access_token} = response.data;
+
+      const decodedToken = JSON.parse(atob(access_token.split('.')[1]));
+      const userRole = decodedToken.role;
+      const userName = decodedToken.name;
+      const userId = decodedToken.sub;
+
+      const userDetailsResponse = await api.get(`/users/${userId}`);
+      const fetchedUser = userDetailsResponse.data;
+
+      if (!fetchedUser.is_verified) {
+        clearAuthData(); // Jangan simpan token jika belum terverifikasi
+        return { success: false, error: "Email belum diverifikasi. Silakan cek email Anda." };
       }
+
+      saveAuthData(access_token, {
+        id : fetchedUser.id,
+        name : fetchedUser.name,
+        email : fetchedUser.email,
+        phone_number : fetchedUser.phone_number,
+        role : fetchedUser.role,
+        is_verified : fetchedUser.is_verified
+      });
+
+      return { success: true, user: fetchedUser };
+      
     } catch (error) {
-      return { success: false, error: 'Terjadi kesalahan saat login' };
+      console.error("Login API call error:", error.response?.data || error.message);
+      // Backend mengembalikan "Incorrect email or password" atau "Email not verified"
+      return { success: false, error: error.response?.data?.detail || 'Login gagal.' };
     }
   };
 
   const register = async (userData) => {
     try {
-      // Mock registration - in real app, this would be an API call
-      const newUser = {
-        id: Date.now(),
-        ...userData,
-        role: 'USER',
-        avatar: null
-      };
-      
-      const token = 'mock-jwt-token-' + newUser.id;
-      
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('userData', JSON.stringify(newUser));
-      
-      setUser(newUser);
-      setIsAuthenticated(true);
-      
-      return { success: true, user: newUser };
+      const response = await api.post('/auth/register', userData);
+      return { success: true, message: "Registrasi berhasil! Silakan cek email Anda untuk verifikasi." };
     } catch (error) {
-      return { success: false, error: 'Terjadi kesalahan saat registrasi' };
+      console.error("Register API call error:", error.response?.data || error.message);
+      // Backend akan mengembalikan "User with this email already exists" jika konflik
+      return { success: false, error: error.response?.data?.detail || 'Registrasi gagal.' };
+    }
+  };
+
+  const verifyEmail = async (token) => {
+    try {
+      const response = await api.post('/auth/verify-email', {token});
+
+      if (response.status === 200) {
+        const currentToken = localStorage.getItem('access_token');
+        if (currentToken) {
+          const decodedToken = JSON.parse(atob(currentToken.split('.')[1]));
+          const userId = decodedToken.sub;
+          const userDetailsResponse = await api.get(`/users/${userId}`);
+          saveAuthData(currentToken, {
+            id: userDetailsResponse.data.id,
+            name: userDetailsResponse.data.name,
+            email: userDetailsResponse.data.email,
+            phone_number: userDetailsResponse.data.phone_number,
+            role: userDetailsResponse.data.role,
+            is_verified: userDetailsResponse.data.is_verified 
+          });
+        }
+
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Verify email API call error:", error.response?.data || error.message);
+      return false;
+    }
+  }
+
+  const resendVerificationEmail = async (email) => {
+    try {
+      const response = await api.post('/auth/resend-verification', { email });
+      return response.status === 200; 
+    } catch (error) {
+      console.error("Resend verification API call error:", error.response?.data || error.message);
+      return false;
+    }
+  };
+
+  const forgotPassword = async (email) => {
+    try {
+      const response = await api.post('/auth/forgot-password', { email });
+      return response.status === 200; 
+    } catch (error) {
+      console.error("Forgot password API call error:", error.response?.data || error.message);
+      return false;
+    }
+  };
+
+
+  const resetPassword = async (token, newPassword, confirmPassword) => {
+    try {
+      const response = await api.post('/auth/reset-password', { token, password: newPassword, confirm_password: confirmPassword });
+      return response.status === 200; 
+    } catch (error) {
+      console.error("Reset password API call error:", error.response?.data || error.message);
+      return false; 
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    setUser(null);
-    setIsAuthenticated(false);
+    clearAuthData();
   };
 
-  const updateProfile = async (updatedData) => {
+
+
+ const updateProfile = async (userId, updatedData) => {
     try {
-      const updatedUser = { ...user, ...updatedData };
-      
-      localStorage.setItem('userData', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      
-      return { success: true, user: updatedUser };
+      const response = await api.put(`/users/${userId}`, updatedData);
+      if (response.status === 200) {
+        const updatedUser = response.data; 
+        saveAuthData(localStorage.getItem('access_token'), {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          phone_number: updatedUser.phone_number,
+          role: updatedUser.role,
+          is_verified: user.is_verified 
+        });
+        return { success: true, user: updatedUser };
+      }
+      return { success: false, error: "Gagal memperbarui profil." };
     } catch (error) {
-      return { success: false, error: 'Terjadi kesalahan saat memperbarui profil' };
+      console.error("Update profile API call error:", error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.detail || 'Terjadi kesalahan saat memperbarui profil.' };
     }
   };
 
@@ -121,11 +224,17 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     login,
     register,
+    verifyEmail,
+    resendVerificationEmail,
+    forgotPassword,
+    resetPassword,
     logout,
     updateProfile,
-    isAdmin: user?.role === 'ADMIN',
-    isUser: user?.role === 'USER'
+    isAdmin: user?.role === 'ADMIN', 
+    isUser: user?.role === 'USER',   
+    api // Export instance axios untuk request API yang terautentikasi di komponen lain
   };
+
 
   return (
     <AuthContext.Provider value={value}>
