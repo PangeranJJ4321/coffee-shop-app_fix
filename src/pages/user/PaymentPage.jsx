@@ -60,7 +60,7 @@ const PaymentPage = () => {
     }
 
     if (!orderData) {
-      navigate('/order-history');
+      navigate('/orders');
       return;
     }
 
@@ -139,7 +139,7 @@ const PaymentPage = () => {
   };
 
   const handleViewOrder = () => {
-    navigate('/order-history');
+    navigate('/orders');
   };
 
   const formatTime = (seconds) => {
