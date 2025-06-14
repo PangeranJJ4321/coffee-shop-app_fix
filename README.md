@@ -4,7 +4,7 @@ Aplikasi frontend untuk coffee shop yang dibangun menggunakan React.js, Tailwind
 
 ## 🚀 Live Demo
 
-**URL Deployment**: [coffee-shop-app-fix.vercel.app](coffee-shop-app-fix.vercel.app)
+**URL Deployment**: [https://hozwhqpo.manus.space](https://hozwhqpo.manus.space)
 
 ## 📋 Fitur Utama
 
@@ -71,7 +71,7 @@ coffee-shop-app/
 
 1. **Clone repository**
    ```bash
-   git clone https://github.com/PangeranJJ4321/coffee-shop-app_fix
+   git clone <https://github.com/PangeranJJ4321/coffee-shop-app_fix>
    cd coffee-shop-app
    ```
 
@@ -80,118 +80,191 @@ coffee-shop-app/
    npm install
    ```
 
-3. **Jalankan development server**
-   ```bash
-   npm run dev --host
-   ```
+### **Installation Magic** 🪄
 
-4. **Buka browser**
-   ```
-   http://localhost:5173
-   ```
+```bash
+# 1️⃣ Clone the repository
+git clone https://github.com/PangeranJJ4321/coffee-shop-app_fix
+cd coffee-shop-app
 
-### Build untuk Production
+# 2️⃣ Install dependencies
+npm install
+
+# 3️⃣ Start development server
+npm run dev --host
+
+# 4️⃣ Open your browser
+# 🌐 http://localhost:5173
+```
+
+### **Production Build** 🏗️
 
 ```bash
 npm run build
+# Files akan tersimpan di folder 'dist/' 📁
 ```
-
-File hasil build akan tersimpan di folder `dist/`.
-
-## 🔐 Demo Credentials
-
-Untuk testing aplikasi, gunakan kredensial berikut:
-
-### User Account
-- **Email**: john@example.com
-- **Password**: password
-
-### Admin Account
-- **Email**: admin@coffeeshop.com
-- **Password**: password
-
-## 📱 Responsive Design
-
-Aplikasi ini didesain untuk bekerja optimal di berbagai perangkat:
-- Desktop (1024px+)
-- Tablet (768px - 1023px)
-- Mobile (320px - 767px)
-
-## 🎨 Design System
-
-### Color Scheme
-- Primary: Coffee brown tones
-- Secondary: Warm amber/orange accents
-- Background: Light neutral colors
-- Text: Dark grays for readability
-
-### Typography
-- Font family: System fonts (Inter, sans-serif)
-- Responsive font sizes
-- Clear hierarchy
-
-## 🔄 State Management
-
-### Context Providers
-- **AuthContext**: Manajemen autentikasi dan user session
-- **CartContext**: Manajemen keranjang belanja
-
-### Local Storage
-- User session data
-- Cart items persistence
-
-## 🛣️ Routing Structure
-
-```
-/ - Homepage
-/menu - Menu page
-/coffee/:id - Coffee detail
-/cart - Shopping cart
-/checkout - Checkout process
-/payment/:orderId - Payment page
-/orders - Order history
-/profile - User profile
-/login - Login page
-/register - Registration page
-/admin - Admin dashboard
-/admin/menu - Menu management
-/admin/variants - Variant management
-/admin/orders - Order management
-/admin/users - User management
-/admin/analytics - Analytics
-```
-
-## 🔮 Pengembangan Selanjutnya
-
-Aplikasi ini telah menyediakan struktur dasar yang solid. Untuk pengembangan lebih lanjut, Anda dapat:
-
-1. **Implementasi Backend Integration**
-   - Koneksi ke REST API atau GraphQL
-   - Real-time updates dengan WebSocket
-   - Database integration
-
-2. **Fitur Tambahan**
-   - Push notifications
-   - Geolocation untuk delivery
-   - Payment gateway integration
-   - Review dan rating system
-   - Loyalty program
-
-3. **Optimisasi**
-   - Code splitting
-   - Image optimization
-   - Performance monitoring
-   - SEO optimization
-
-## 📄 Lisensi
-
-Proyek ini dibuat untuk keperluan demonstrasi dan pembelajaran.
-
-## 🤝 Kontribusi
-
-Untuk kontribusi atau pertanyaan, silakan buat issue atau pull request di repository ini.
 
 ---
 
-**Dibuat dengan ❤️ menggunakan React.js, Tailwind CSS, dan Shadcn/UI**
+## 🔐 **Demo Accounts**
 
+<div align="center">
+
+| Role | Email | Password | Access Level |
+|:----:|:-----:|:--------:|:------------:|
+| 👤 **User** | john@example.com | `password` | Customer Features |
+| 🎛️ **Admin** | admin@coffeeshop.com | `password` | Full Control Panel |
+
+</div>
+
+---
+
+## 📱 **Responsive & Cross-Platform**
+
+<div align="center">
+
+```
+📱 Mobile (320px+)    💻 Desktop (1024px+)    📲 Tablet (768px+)
+     Perfect              Optimal               Seamless
+```
+
+</div>
+
+---
+
+## 🎨 **Design Philosophy**
+
+### **Color Palette** 🎨
+```css
+Primary   → #8B4513 (Rich Coffee Brown)
+Secondary → #D2691E (Warm Chocolate)  
+Accent    → #CD853F (Sandy Brown)
+Background→ #F5F5DC (Cream Beige)
+Text      → #2F1B14 (Dark Espresso)
+```
+
+### **Typography** ✍️
+- **Font Family**: Inter, System Fonts
+- **Hierarchy**: Clear visual distinction
+- **Readability**: Optimized for all screen sizes
+
+---
+
+## 🗂️ **Project Architecture**
+
+```
+coffee-shop-app/
+├── 🎨 src/
+│   ├── 🧩 components/
+│   │   ├── layout/          # Navbar, Footer, Sidebar
+│   │   └── ui/              # Reusable UI Components
+│   ├── 🔄 contexts/         # Global State Management
+│   ├── 📄 pages/
+│   │   ├── user/            # Customer Interface
+│   │   ├── admin/           # Admin Dashboard
+│   │   └── auth/            # Authentication
+│   ├── 🛠️ utils/            # Helper Functions
+│   ├── 🚀 App.jsx           # Main Application
+│   └── 📍 main.jsx          # Entry Point
+├── 🌐 public/               # Static Assets
+└── 📋 package.json          # Dependencies
+```
+
+---
+
+## 🔮 **Roadmap & Future Features**
+
+<details>
+<summary><strong>🚀 Phase 1: Core Enhancement</strong></summary>
+
+- [ ] **Real-time Notifications** 🔔
+- [ ] **Dark/Light Theme Toggle** 🌙
+- [ ] **Progressive Web App (PWA)** 📱
+- [ ] **Offline Mode Support** 📶
+
+</details>
+
+<details>
+<summary><strong>🎯 Phase 2: Advanced Features</strong></summary>
+
+- [ ] **AI-Powered Recommendations** 🤖
+- [ ] **Voice Ordering** 🎤
+- [ ] **Loyalty Program** 💎
+- [ ] **Social Media Integration** 📲
+
+</details>
+
+<details>
+<summary><strong>🌍 Phase 3: Scale & Expansion</strong></summary>
+
+- [ ] **Multi-language Support** 🌐
+- [ ] **Multi-store Management** 🏪
+- [ ] **Delivery Integration** 🚗
+- [ ] **Advanced Analytics** 📊
+
+</details>
+
+---
+
+## 🤝 **Contributing**
+
+<div align="center">
+
+**Kami menyambut kontribusi dari para developer yang passionate!** ❤️
+
+[![Contributors](https://contrib.rocks/image?repo=PangeranJJ4321/coffee-shop-app_fix)](https://github.com/PangeranJJ4321/coffee-shop-app_fix/graphs/contributors)
+
+</div>
+
+### **How to Contribute** 🎯
+
+1. **Fork** the repository 🍴
+2. **Create** your feature branch (`git checkout -b feature/AmazingFeature`) 🌿
+3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`) 💾
+4. **Push** to the branch (`git push origin feature/AmazingFeature`) 🚀
+5. **Open** a Pull Request 📝
+
+---
+
+## 📊 **Project Stats**
+
+<div align="center">
+
+![GitHub Stars](https://img.shields.io/github/stars/PangeranJJ4321/coffee-shop-app_fix?style=social)
+![GitHub Forks](https://img.shields.io/github/forks/PangeranJJ4321/coffee-shop-app_fix?style=social)
+![GitHub Issues](https://img.shields.io/github/issues/PangeranJJ4321/coffee-shop-app_fix)
+![GitHub License](https://img.shields.io/github/license/PangeranJJ4321/coffee-shop-app_fix)
+
+</div>
+
+---
+
+## 📞 **Connect With Us**
+
+<div align="center">
+
+**Ada pertanyaan? Butuh bantuan? Atau sekadar ingin ngobrol tentang kopi? ☕**
+
+[![Email](https://img.shields.io/badge/📧_Email-coffee@example.com-red?style=for-the-badge)](mailto:coffee@example.com)
+[![GitHub](https://img.shields.io/badge/🐙_GitHub-PangeranJJ4321-black?style=for-the-badge)](https://github.com/PangeranJJ4321)
+[![Demo](https://img.shields.io/badge/🌐_Live_Demo-Visit_Now-success?style=for-the-badge)](https://coffee-shop-app-fix.vercel.app)
+
+</div>
+
+---
+
+## 📄 **License**
+
+<div align="center">
+
+**MIT License** - feel free to use this project for learning and development! 🎓
+
+*Made with ❤️, ☕, and lots of passion for great coffee*
+
+---
+
+**⭐ If you love this project, don't forget to give it a star! ⭐**
+
+*"Life's too short for bad coffee and ugly apps"* ☕✨
+
+</div>
