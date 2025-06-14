@@ -30,6 +30,7 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import EmailVerificationPage from './pages/auth/EmailVerificationPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 
 // Error Pages
 import NotFoundPage from './pages/NotFoundPage';
@@ -56,6 +57,7 @@ function App() {
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                   <Route path="/verify-email" element={<EmailVerificationPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
                   
                   {/* User Protected Routes */}
                   <Route path="/cart" element={<CartPage />} />
