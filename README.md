@@ -229,15 +229,6 @@ coffee-shop-app/
 
 ---
 
-## 🤝 **Contributing**
-
-<div align="center">
-
-**Kami menyambut kontribusi dari para developer yang passionate!** ❤️
-
-[![Contributors](https://contrib.rocks/image?repo=PangeranJJ4321/coffee-shop-app_fix)](https://github.com/PangeranJJ4321/coffee-shop-app_fix/graphs/contributors)
-
-</div>
 
 ### **How to Contribute** 🎯
 
@@ -246,19 +237,6 @@ coffee-shop-app/
 3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`) 💾
 4. **Push** to the branch (`git push origin feature/AmazingFeature`) 🚀
 5. **Open** a Pull Request 📝
-
----
-
-## 📊 **Project Stats**
-
-<div align="center">
-
-![GitHub Stars](https://img.shields.io/github/stars/PangeranJJ4321/coffee-shop-app_fix?style=social)
-![GitHub Forks](https://img.shields.io/github/forks/PangeranJJ4321/coffee-shop-app_fix?style=social)
-![GitHub Issues](https://img.shields.io/github/issues/PangeranJJ4321/coffee-shop-app_fix)
-![GitHub License](https://img.shields.io/github/license/PangeranJJ4321/coffee-shop-app_fix)
-
-</div>
 
 ---
 
