@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const EmailVerificationPage = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, verifyEmail, resendVerificationEmail } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [verificationStatus, setVerificationStatus] = useState('pending'); // pending, success, error, expired
@@ -31,9 +31,20 @@ const EmailVerificationPage = () => {
   useEffect(() => {
     // Auto-verify if token is present
     if (token) {
-      verifyEmail(token);
+      // verifyEmail(token);
+      handleVerifyEmail(token);
+    } else if (email && !user?.is_verified) {
+      setVerificationStatus('pending');
+      setMessage('Link verifikasi telah dikirim ke email Anda. Silakan periksa kotak masuk.');
+    } else if (user?.is_verified) {
+      setVerificationStatus('success');
+      setMessage('Email Anda sudah terverifikasi.');
+    } else {
+      setVerificationStatus('error');
+      setMessage('Tidak ada token verifikasi yang ditemukan. Silakan kembali ke halaman pendaftaran atau login.');
     }
-  }, [token]);
+  }, [token, email, user]);
+
 
   useEffect(() => {
     // Cooldown timer
@@ -43,23 +54,17 @@ const EmailVerificationPage = () => {
     }
   }, [resendCooldown]);
 
-  const verifyEmail = async (verificationToken) => {
+  const handleVerifyEmail = async (verificationToken) => {
     try {
       setVerificationStatus('pending');
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock verification logic
-      if (verificationToken === 'valid-token' || verificationToken.length > 10) {
+      const success = await verifyEmail(verificationToken);
+      if (success) {
         setVerificationStatus('success');
         setMessage('Email Anda berhasil diverifikasi! Sekarang Anda dapat menggunakan semua fitur aplikasi.');
-      } else if (verificationToken === 'expired-token') {
-        setVerificationStatus('expired');
-        setMessage('Link verifikasi telah kedaluwarsa. Silakan minta link verifikasi baru.');
       } else {
-        setVerificationStatus('error');
-        setMessage('Link verifikasi tidak valid atau telah digunakan sebelumnya.');
+        setMessage('Link verifikasi tidak valid atau telah kedaluwarsa. Silakan minta link verifikasi baru.');
+        setVerificationStatus('expired'); 
       }
     } catch (error) {
       setVerificationStatus('error');
@@ -67,23 +72,30 @@ const EmailVerificationPage = () => {
     }
   };
 
-  const handleResendVerification = async () => {
+const handleResendVerification = async () => {
     if (resendCooldown > 0) return;
+    if (!email) {
+      setMessage('Email tidak ditemukan untuk mengirim ulang verifikasi.');
+      return;
+    }
     
     setIsResending(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const success = await resendVerificationEmail(email); 
       
-      setMessage('Email verifikasi baru telah dikirim ke ' + email);
-      setResendCooldown(60); // 60 seconds cooldown
+      if (success) {
+        setMessage('Email verifikasi baru telah dikirim ke ' + email);
+        setResendCooldown(60); // 60 seconds cooldown
+      } else {
+        setMessage('Gagal mengirim email verifikasi. Silakan coba lagi.');
+      }
     } catch (error) {
       setMessage('Gagal mengirim email verifikasi. Silakan coba lagi.');
     } finally {
       setIsResending(false);
     }
   };
+
 
   const getStatusIcon = () => {
     switch (verificationStatus) {

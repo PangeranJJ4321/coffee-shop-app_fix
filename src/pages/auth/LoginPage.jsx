@@ -141,7 +141,7 @@ const LoginPage = () => {
             <p className="text-sm font-medium mb-2">Demo Credentials:</p>
             <div className="text-xs space-y-1">
               <div>User: john@example.com / password</div>
-              <div>Admin: admin@coffeeshop.com / password</div>
+              <div>Admin: admin@coffeeshop.com / admin123456</div>
             </div>
           </div>
         </CardContent>

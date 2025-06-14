@@ -109,16 +109,16 @@ const RegisterPage = () => {
 
     try {
       const result = await register({
-        name: formData.username,
+        name: formData.name,
         email: formData.email,
         password: formData.password,
         phone: '' // Optional field, can be added later
       });
       
       if (result.success) {
-        setSuccess('Registrasi berhasil! Anda akan diarahkan ke halaman utama...');
+        setSuccess('Registrasi berhasil! Silakan cek email Anda untuk verifikasi.');
         setTimeout(() => {
-          navigate('/', { replace: true });
+          navigate('/login', { replace: true });
         }, 2000);
       } else {
         setErrors({ general: result.error });
@@ -188,18 +188,18 @@ const RegisterPage = () => {
 
             {/* Username Field */}
             <div className="space-y-2">
-              <Label htmlFor="username">Username *</Label>
+              <Label htmlFor="name">Username *</Label>
               <Input
-                id="username"
-                name="username"
+                id="name"
+                name="name"
                 type="text"
-                placeholder="username"
-                value={formData.username}
+                placeholder="name"
+                value={formData.name}
                 onChange={handleChange}
                 disabled={isLoading}
-                className={errors.username ? 'border-red-500' : ''}
+                className={errors.name ? 'border-red-500' : ''}
               />
-              {errors.username && (
+              {errors.name && (
                 <p className="text-sm text-red-500">{errors.username}</p>
               )}
               <p className="text-xs text-muted-foreground">
