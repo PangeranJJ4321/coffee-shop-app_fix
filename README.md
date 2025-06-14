@@ -1,84 +1,107 @@
-# Coffee Shop - Aplikasi Pemesanan Kopi
+# ☕ Coffee Shop - Premium Coffee Experience
 
-Aplikasi frontend untuk coffee shop yang dibangun menggunakan React.js, Tailwind CSS, dan Shadcn/UI components. Aplikasi ini menyediakan antarmuka yang lengkap untuk pelanggan dan admin coffee shop.
+<div align="center">
+  
+  ![Coffee Shop Banner](https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&h=300&fit=crop&crop=center)
+  
+  **🚀 Aplikasi Pemesanan Kopi Modern yang Dibangun dengan Cinta & Teknologi Terkini**
+  
+  [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-coffee--shop--app--fix.vercel.app-ff6b35?style=for-the-badge&logoColor=white)](https://coffee-shop-app-fix.vercel.app)
+  [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+  [![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)](https://vitejs.dev/)
+  
+  *Rasakan pengalaman memesan kopi yang tak terlupakan dengan antarmuka yang elegan dan fitur-fitur canggih*
+  
+</div>
 
-## 🚀 Live Demo
+---
 
-**URL Deployment**: [https://hozwhqpo.manus.space](https://hozwhqpo.manus.space)
+## ✨ **Mengapa Coffee Shop App Ini Istimewa?**
 
-## 📋 Fitur Utama
+<table>
+<tr>
+<td width="50%">
 
-### Untuk Pengguna (User)
-- **Halaman Beranda**: Informasi coffee shop, menu pilihan, jam operasional
-- **Menu Kopi**: Daftar lengkap menu dengan rating dan harga
-- **Detail Kopi**: Informasi detail, varian, dan sistem rating
-- **Keranjang Belanja**: Manajemen item pesanan
-- **Checkout & Pembayaran QRIS**: Proses pemesanan dengan pembayaran QRIS
-- **Riwayat Pesanan**: Tracking pesanan dan status
-- **Profil Pengguna**: Manajemen akun dan favorit
+### 🎨 **Design yang Memukau**
+- Interface modern dengan tema coffee shop yang hangat
+- Responsive design untuk semua perangkat
+- Animasi halus yang menyenangkan mata
+- Color palette yang terinspirasi dari biji kopi asli
 
-### Untuk Admin
-- **Dashboard Admin**: Statistik dan overview bisnis
-- **Manajemen Menu**: CRUD operasi untuk menu kopi
-- **Manajemen Varian**: Pengaturan varian (ukuran, level gula, dll)
-- **Manajemen Pesanan**: Tracking dan update status pesanan
-- **Manajemen Pengguna**: Administrasi user dan role
-- **Analytics**: Laporan penjualan dan analitik
+### ⚡ **Performa Tinggi**
+- Dibangun dengan Vite untuk kecepatan maksimal
+- Optimized loading dengan lazy loading
+- Bundle size yang minimal
+- Real-time updates tanpa lag
 
-### Fitur Autentikasi
-- Login/Register dengan validasi
-- Session management
-- Role-based access (User/Admin)
-- Protected routes
+</td>
+<td width="50%">
 
-## 🛠️ Teknologi yang Digunakan
+### 🔒 **Keamanan Terjamin**
+- Sistem autentikasi yang robust
+- Protected routes untuk admin
+- Session management yang aman
+- Validasi data di setiap input
 
-- **React.js** - Frontend framework
-- **Tailwind CSS** - Utility-first CSS framework
-- **Shadcn/UI** - Component library
-- **React Router DOM** - Routing
-- **Lucide React** - Icon library
-- **Vite** - Build tool dan development server
+### 🎯 **User Experience Terbaik**
+- Navigasi yang intuitif
+- Search & filter yang cepat
+- Cart management yang smart
+- One-click checkout dengan QRIS
 
-## 🏗️ Struktur Proyek
+</td>
+</tr>
+</table>
 
+---
+
+## 🌟 **Fitur-Fitur Unggulan**
+
+### 👤 **Untuk Coffee Lovers (Pengguna)**
 ```
-coffee-shop-app/
-├── src/
-│   ├── components/
-│   │   ├── layout/          # Layout components (Navbar, Footer)
-│   │   └── ui/              # Shadcn/UI components
-│   ├── contexts/            # React contexts (Auth, Cart)
-│   ├── pages/
-│   │   ├── user/            # User pages
-│   │   ├── admin/           # Admin pages
-│   │   └── auth/            # Authentication pages
-│   ├── utils/               # Utility functions
-│   ├── App.jsx              # Main app component
-│   └── main.jsx             # Entry point
-├── public/                  # Static assets
-├── package.json             # Dependencies
-└── README.md               # Documentation
+🏠 Beranda Menawan        → Sambutan hangat dengan menu pilihan terbaik
+📋 Menu Lengkap          → Katalog kopi dengan rating & review
+🔍 Detail Kopi           → Info lengkap setiap varian dengan foto HD  
+🛒 Keranjang Pintar      → Manajemen pesanan yang mudah & cepat
+💳 Pembayaran QRIS       → Checkout instan dengan scan QR code
+📊 Riwayat Pesanan       → Tracking real-time status pesanan
+👨‍💼 Profil Personal       → Kelola akun & daftar kopi favorit
 ```
 
-## 🚀 Instalasi dan Development
+### 🎛️ **Untuk Barista & Owner (Admin)**
+```
+📈 Dashboard Analytics   → Statistik penjualan & insights bisnis
+🍵 Manajemen Menu       → CRUD lengkap untuk semua produk
+⚙️ Pengaturan Varian    → Kontrol ukuran, level gula, temperature
+📦 Kelola Pesanan       → Update status & komunikasi dengan customer
+👥 User Management      → Administrasi pengguna & role permission
+📊 Laporan Penjualan    → Export data & analisis trend
+```
 
-### Prerequisites
-- Node.js (v18 atau lebih baru)
-- pnpm (package manager)
+---
 
-### Langkah Instalasi
+## 🛠️ **Tech Stack Pilihan**
 
-1. **Clone repository**
-   ```bash
-   git clone <https://github.com/PangeranJJ4321/coffee-shop-app_fix>
-   cd coffee-shop-app
-   ```
+<div align="center">
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+| Frontend | Styling | Components | Tools |
+|:--------:|:-------:|:----------:|:-----:|
+| ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) | ![Tailwind](https://img.shields.io/badge/Tailwind-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white) | ![Shadcn](https://img.shields.io/badge/Shadcn/UI-000000?style=flat-square&logo=shadcnui&logoColor=white) | ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white) |
+| Modern & Fast | Utility-First | Beautiful Components | Lightning Build |
+
+</div>
+
+---
+
+## 🚀 **Quick Start Guide**
+
+### **Prerequisites**
+```bash
+Node.js ≥ 18.0.0  ✅
+npm or pnpm       ✅
+Git               ✅
+```
 
 ### **Installation Magic** 🪄
 
