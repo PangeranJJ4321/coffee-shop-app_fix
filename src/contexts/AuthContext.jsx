@@ -1,22 +1,21 @@
-import React from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
 
-const BASE_API_URL = 'http://127.0.0.1:8000/api/v1';
+const BASE_API_URL = 'http://127.0.0.1:8000/api/v1'; 
 
 const api = axios.create({
-  baseURL :BASE_API_URL,
-  headers : {
-    'Content-Type' : 'application/json',
+  baseURL: BASE_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   }
 });
 
-// Buat Interceptor untuk api yang membutuhkan token
+// Interceptor untuk api yang membutuhkan token
 api.interceptors.request.use(
   config => {
-    const token = localStorage.getItem('access_token'); 
+    const token = localStorage.getItem('access_token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -27,8 +26,6 @@ api.interceptors.request.use(
   }
 );
 
-
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   const saveAuthData = (token, userData) => {
     localStorage.setItem('access_token', token);
-    localStorage.setItem('user_data', JSON.stringify(userData));
+    localStorage.setItem('user_data', JSON.stringify(userData)); 
     setUser(userData);
     setIsAuthenticated(true);
   };
@@ -48,66 +45,77 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  // Fungsi helper untuk me-refresh data user dari backend
+  const refreshUserProfile = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      clearAuthData();
+      return null;
+    }
+    try {
+      // Panggil endpoint /users/me untuk mendapatkan data user lengkap
+      const response = await api.get('/users/me');
+      const fetchedUser = response.data; 
+      saveAuthData(token, fetchedUser); 
+      return fetchedUser;
+    } catch (error) {
+      console.error("Failed to refresh user profile:", error.response?.data || error.message);
+      clearAuthData(); 
+      return null;
+    }
+  };
 
 
   useEffect(() => {
     const loadUser = async () => {
       const token = localStorage.getItem('access_token');
-      const userDataString = localStorage.getItem('user_data');
+      // userDataString tidak lagi langsung digunakan untuk setUser, tapi untuk cek keberadaan saja
+      const userDataString = localStorage.getItem('user_data'); 
 
-      if (token && userDataString) {
+      if (token) {
         try {
-          const storedUser = JSON.parse(userDataString); 
-          setUser(storedUser); 
-          setIsAuthenticated(true);
+          // Selalu panggil /users/me untuk mendapatkan data terbaru dan memvalidasi token
+          const fetchedUser = await refreshUserProfile();
+          if (!fetchedUser) {
+            clearAuthData(); // Jika refreshUserProfile gagal, bersihkan data
+          }
         } catch (error) {
-          console.error("Failed to parse user data from localStorage or validate token:", error);
-          clearAuthData();
+          // Error sudah ditangani di refreshUserProfile
         }
       }
       setIsLoading(false);
     };
 
     loadUser();
-  }, []);
+  }, []); // Hanya dijalankan sekali saat mount, refreshUserProfile akan memuat data
+
 
   const login = async (email, password) => {
     try {
+      const response = await api.post('/auth/login', { email, password });
+      const { access_token } = response.data;
 
-      const response = await api.post('/auth/login', {email, password});
-      const {access_token} = response.data;
-      // const {email} = response.data;
+      localStorage.setItem('access_token', access_token); // Simpan token dulu
 
-      // localStorage.setItem('email', email);
-      localStorage.setItem('access_token', access_token);
+      // Langsung panggil refreshUserProfile setelah token tersimpan
+      const fetchedUser = await refreshUserProfile();
 
-      const decodedToken = JSON.parse(atob(access_token.split('.')[1]));
-      const userRole = decodedToken.role;
-      const userName = decodedToken.name;
-      const userId = decodedToken.sub;
-
-      const userDetailsResponse = await api.get(`/users/${userId}`);
-      const fetchedUser = userDetailsResponse.data;
+      if (!fetchedUser) { // Jika gagal memuat profil setelah login
+        clearAuthData();
+        return { success: false, error: "Gagal memuat profil pengguna setelah login." };
+      }
 
       if (!fetchedUser.is_verified) {
-        clearAuthData(); // Jangan simpan token jika belum terverifikasi
+        clearAuthData();
         return { success: false, error: "Email belum diverifikasi. Silakan cek email Anda." };
       }
 
-      saveAuthData(access_token, {
-        id : fetchedUser.id,
-        name : fetchedUser.name,
-        email : fetchedUser.email,
-        phone_number : fetchedUser.phone_number,
-        role : fetchedUser.role,
-        is_verified : fetchedUser.is_verified
-      });
-
+      // saveAuthData sudah dipanggil di refreshUserProfile
       return { success: true, user: fetchedUser };
-      
+
     } catch (error) {
       console.error("Login API call error:", error.response?.data || error.message);
-      // Backend mengembalikan "Incorrect email or password" atau "Email not verified"
+      clearAuthData(); // Hapus data jika login gagal
       return { success: false, error: error.response?.data?.detail || 'Login gagal.' };
     }
   };
@@ -115,51 +123,33 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
-      // const {email} = response.data;
-      // localStorage.setItem('email', email);
-      // console.log(email);
       return { success: true, message: "Registrasi berhasil! Silakan cek email Anda untuk verifikasi." };
     } catch (error) {
       console.error("Register API call error:", error.response?.data || error.message);
-      // Backend akan mengembalikan "User with this email already exists" jika konflik
       return { success: false, error: error.response?.data?.detail || 'Registrasi gagal.' };
     }
   };
 
   const verifyEmail = async (token) => {
     try {
-      const response = await api.post('/auth/verify-email', {token});
+      const response = await api.post('/auth/verify-email', { token });
 
       if (response.status === 200) {
-        const currentToken = localStorage.getItem('access_token');
-        if (currentToken) {
-          const decodedToken = JSON.parse(atob(currentToken.split('.')[1]));
-          const userId = decodedToken.sub;
-          const userDetailsResponse = await api.get(`/users/${userId}`);
-          saveAuthData(currentToken, {
-            id: userDetailsResponse.data.id,
-            name: userDetailsResponse.data.name,
-            email: userDetailsResponse.data.email,
-            phone_number: userDetailsResponse.data.phone_number,
-            role: userDetailsResponse.data.role,
-            is_verified: userDetailsResponse.data.is_verified 
-          });
-        }
-
+        // Setelah verifikasi, refresh profil untuk mendapatkan status is_verified terbaru
+        await refreshUserProfile(); 
         return true;
       }
-
       return false;
     } catch (error) {
       console.error("Verify email API call error:", error.response?.data || error.message);
       return false;
     }
-  }
+  };
 
   const resendVerificationEmail = async (email) => {
     try {
       const response = await api.post('/auth/resend-verification', { email });
-      return response.status === 200; 
+      return response.status === 200;
     } catch (error) {
       console.error("Resend verification API call error:", error.response?.data || error.message);
       return false;
@@ -169,21 +159,20 @@ export const AuthProvider = ({ children }) => {
   const forgotPassword = async (email) => {
     try {
       const response = await api.post('/auth/forgot-password', { email });
-      return response.status === 200; 
+      return response.status === 200;
     } catch (error) {
       console.error("Forgot password API call error:", error.response?.data || error.message);
       return false;
     }
   };
 
-
   const resetPassword = async (token, password, confirm_password) => {
     try {
       const response = await api.post('/auth/reset-password', { token, password, confirm_password });
-      return response.status === 200; 
+      return response.status === 200;
     } catch (error) {
       console.error("Reset password API call error:", error.response?.data || error.message);
-      return false; 
+      return false;
     }
   };
 
@@ -191,28 +180,49 @@ export const AuthProvider = ({ children }) => {
     clearAuthData();
   };
 
-
-
- const updateProfile = async (userId, updatedData) => {
+  const updateProfile = async (userId, updatedData) => {
     try {
       const response = await api.put(`/users/${userId}`, updatedData);
       if (response.status === 200) {
-        const updatedUser = response.data; 
-        console.log(updatedUser);
-        saveAuthData(localStorage.getItem('access_token'), {
-          id: updatedUser.id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          phone_number: updatedUser.phone_number,
-          role: user.role,
-          is_verified: user.is_verified 
-        });
-        return { success: true, user: updatedUser };
+        // Setelah update profil, refresh data user untuk mendapatkan semua data terbaru
+        await refreshUserProfile(); 
+        return { success: true, user: user }; // `user` state akan diperbarui oleh refreshUserProfile
       }
       return { success: false, error: "Gagal memperbarui profil." };
     } catch (error) {
       console.error("Update profile API call error:", error.response?.data || error.message);
       return { success: false, error: error.response?.data?.detail || 'Terjadi kesalahan saat memperbarui profil.' };
+    }
+  };
+
+  const changePassword = async (currentPassword, newPassword, confirmNewPassword) => {
+    try {
+      const response = await api.put('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_new_password: confirmNewPassword
+      });
+      return { success: response.status === 200, error: response.data.detail }; // Mengembalikan object error
+    } catch (error) {
+      console.error("Change password API call error:", error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.detail || 'Gagal mengubah password.' };
+    }
+  };
+
+  // Fungsi untuk menambah/menghapus favorit
+  const toggleFavorite = async (coffeeId, isCurrentlyFavorite) => {
+    try {
+      if (isCurrentlyFavorite) {
+        await api.delete(`/menu/favorites/${coffeeId}`);
+      } else {
+        await api.post(`/menu/favorites/${coffeeId}`);
+      }
+
+      await refreshUserProfile(); 
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.detail || 'Gagal mengubah status favorit.' };
     }
   };
 
@@ -228,11 +238,13 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     logout,
     updateProfile,
-    isAdmin: user?.role === 'ADMIN', 
-    isUser: user?.role === 'USER',   
+    changePassword,
+    toggleFavorite, 
+    refreshUserProfile,
+    isAdmin: user?.role === 'ADMIN',
+    isUser: user?.role === 'USER',
     api // Export instance axios untuk request API yang terautentikasi di komponen lain
   };
-
 
   return (
     <AuthContext.Provider value={value}>
@@ -248,4 +260,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
