@@ -33,23 +33,25 @@ import {
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { user, updateProfile, isAuthenticated } = useAuth();
-  
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone_number: ''
   });
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
     confirm: false
   });
+
   const [favorites, setFavorites] = useState([]);
   const [userStats, setUserStats] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -107,7 +109,7 @@ const ProfilePage = () => {
       setEditForm({
         name: user.name || '',
         email: user.email || '',
-        phone: user.phone || ''
+        phone_number: user.phone_number || ''
       });
     }
 
@@ -126,7 +128,7 @@ const ProfilePage = () => {
       setEditForm({
         name: user.name || '',
         email: user.email || '',
-        phone: user.phone || ''
+        phone_number: user.phone_number || ''
       });
     }
     setIsEditing(!isEditing);
@@ -157,7 +159,7 @@ const ProfilePage = () => {
     setSuccess('');
 
     try {
-      const result = await updateProfile(editForm);
+      const result = await updateProfile(user.id, editForm);
       
       if (result.success) {
         setSuccess('Profil berhasil diperbarui!');
@@ -360,11 +362,11 @@ const ProfilePage = () => {
                             />
                           </div>
                           <div className="space-y-2 md:col-span-2">
-                            <Label htmlFor="phone">Nomor Telepon</Label>
+                            <Label htmlFor="phone_number">Nomor Telepon</Label>
                             <Input
-                              id="phone"
-                              name="phone"
-                              value={editForm.phone}
+                              id="phone_number"
+                              name="phone_number"
+                              value={editForm.phone_number}
                               onChange={handleFormChange}
                               placeholder="08xxxxxxxxxx"
                             />
@@ -399,7 +401,7 @@ const ProfilePage = () => {
                             <Label className="text-sm text-muted-foreground">Nomor Telepon</Label>
                             <div className="flex items-center gap-2">
                               <Phone className="h-4 w-4 text-muted-foreground" />
-                              <span>{user?.phone || 'Belum diisi'}</span>
+                              <span>{user?.phone_number || 'Belum diisi'}</span>
                             </div>
                           </div>
                         </div>

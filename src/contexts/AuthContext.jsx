@@ -198,12 +198,13 @@ export const AuthProvider = ({ children }) => {
       const response = await api.put(`/users/${userId}`, updatedData);
       if (response.status === 200) {
         const updatedUser = response.data; 
+        console.log(updatedUser);
         saveAuthData(localStorage.getItem('access_token'), {
           id: updatedUser.id,
           name: updatedUser.name,
           email: updatedUser.email,
           phone_number: updatedUser.phone_number,
-          role: updatedUser.role,
+          role: user.role,
           is_verified: user.is_verified 
         });
         return { success: true, user: updatedUser };
