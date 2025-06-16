@@ -38,9 +38,8 @@ const ResetPasswordPage = () => {
   const [resetStatus, setResetStatus] = useState('form'); // form, success, error, invalid
   const [message, setMessage] = useState('');
   
-  // Get token and email from URL params
+  // Get token from URL params
   const token = searchParams.get('token');
-  const email = searchParams.get('email') || '';
 
   useEffect(() => {
     // Validate token on component mount
@@ -48,29 +47,16 @@ const ResetPasswordPage = () => {
       setResetStatus('invalid');
       setMessage('Link reset password tidak valid atau tidak ditemukan.');
     } else {
-      validateToken(token);
-    }
-  }, [token]);
-
-  const validateToken = async (resetToken) => {
-    try {
-      // Simulate token validation
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock validation logic
-      if (resetToken === 'expired-token') {
+       if (token === 'expired-token') { // Hanya untuk simulasi UI, bukan dari API
         setResetStatus('invalid');
         setMessage('Link reset password telah kedaluwarsa. Silakan minta link reset baru.');
-      } else if (resetToken.length < 10) {
+      } else if (token.length < 10) { // Contoh validasi sederhana
         setResetStatus('invalid');
         setMessage('Link reset password tidak valid.');
       }
-      // If valid, keep status as 'form'
-    } catch (error) {
-      setResetStatus('invalid');
-      setMessage('Terjadi kesalahan saat memvalidasi link reset password.');
     }
-  };
+  }, [token]);
+
 
   const validateForm = () => {
     const newErrors = {};
@@ -78,8 +64,8 @@ const ResetPasswordPage = () => {
     // Password validation
     if (!formData.password) {
       newErrors.password = 'Password wajib diisi';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password minimal 6 karakter';
+    } else if (formData.password.length < 8) { 
+      newErrors.password = 'Password minimal 8 karakter';
     }
 
     // Confirm password validation
@@ -118,11 +104,7 @@ const ResetPasswordPage = () => {
     setMessage('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock reset password logic
-      const success = await resetPassword(email, formData.password, token);
+      const success = await resetPassword(token, formData.password, formData.confirmPassword);
       
       if (success) {
         setResetStatus('success');
@@ -143,11 +125,11 @@ const ResetPasswordPage = () => {
     if (!password) return { strength: 0, label: '', color: '' };
     
     let strength = 0;
-    if (password.length >= 6) strength++;
     if (password.length >= 8) strength++;
     if (/[A-Z]/.test(password)) strength++;
     if (/[0-9]/.test(password)) strength++;
     if (/[^A-Za-z0-9]/.test(password)) strength++;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
 
     const levels = [
       { label: 'Sangat Lemah', color: 'text-red-500' },
@@ -262,7 +244,7 @@ const ResetPasswordPage = () => {
 
           <CardContent>
             {/* Email Info */}
-            {email && (
+            {/* {email && (
               <div className="bg-muted/50 rounded-lg p-3 mb-6">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Shield className="h-4 w-4" />
@@ -270,7 +252,7 @@ const ResetPasswordPage = () => {
                 </div>
                 <p className="font-medium mt-1">{email}</p>
               </div>
-            )}
+            )} */}
 
             {/* Error Message */}
             {resetStatus === 'error' && message && (
@@ -373,17 +355,17 @@ const ResetPasswordPage = () => {
               <div className="bg-muted/50 rounded-lg p-3">
                 <p className="text-sm font-medium mb-2">Persyaratan Password:</p>
                 <ul className="text-xs text-muted-foreground space-y-1">
-                  <li className={formData.password.length >= 6 ? 'text-green-600' : ''}>
-                    • Minimal 6 karakter
+                  <li className={formData.password.length >= 8 ? 'text-green-600' : ''}>
+                    • Minimal 8 karakter
                   </li>
                   <li className={/[A-Z]/.test(formData.password) ? 'text-green-600' : ''}>
-                    • Mengandung huruf besar
+                    • Mengandung huruf besar (UX Only)
                   </li>
                   <li className={/[0-9]/.test(formData.password) ? 'text-green-600' : ''}>
-                    • Mengandung angka
+                    • Mengandung angka (UX Only)
                   </li>
                   <li className={/[^A-Za-z0-9]/.test(formData.password) ? 'text-green-600' : ''}>
-                    • Mengandung karakter khusus
+                    • Mengandung karakter khusus (UX Only)
                   </li>
                 </ul>
               </div>

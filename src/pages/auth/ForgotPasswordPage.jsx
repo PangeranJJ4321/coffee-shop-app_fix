@@ -6,8 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Coffee, Loader2, CheckCircle, ArrowLeft, Mail } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ForgotPasswordPage = () => {
+  const { forgotPassword, resendVerificationEmail } = useAuth(); 
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,15 +45,15 @@ const ForgotPasswordPage = () => {
     }
 
     try {
-      // Mock API call for password reset
-      // In a real application, this would call your backend API
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-      
-      // Mock success response
-      setSuccess(true);
-      setEmailSent(true);
+      const success = await forgotPassword(email); 
+      if (success) {
+        setEmailSent(true);
+        setSuccess(true);
+      } else {
+        setError('Terjadi kesalahan saat mengirim permintaan reset password.');
+      }
     } catch (err) {
-      setError('Terjadi kesalahan saat mengirim email reset password');
+      setError('Terjadi kesalahan jaringan atau server saat mengirim email reset password');
     } finally {
       setIsLoading(false);
     }
@@ -62,11 +64,15 @@ const ForgotPasswordPage = () => {
     setError('');
 
     try {
-      // Mock resend email API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setSuccess(true);
+      const success = await resendVerificationEmail(email); 
+      if (success) {
+        setError(''); 
+      } else {
+        setError('Gagal mengirim ulang email reset password.');
+      }
+      
     } catch (err) {
-      setError('Gagal mengirim ulang email');
+      setError('Gagal mengirim ulang email reset password.');
     } finally {
       setIsLoading(false);
     }

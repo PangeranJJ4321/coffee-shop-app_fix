@@ -14,7 +14,7 @@ const RegisterPage = () => {
   
   const [formData, setFormData] = useState({
     email: '',
-    username: '',
+    username: '', // Konsisten menggunakan username
     password: '',
     confirmPassword: ''
   });
@@ -109,16 +109,16 @@ const RegisterPage = () => {
 
     try {
       const result = await register({
-        name: formData.username,
+        name: formData.username, 
         email: formData.email,
         password: formData.password,
-        phone: '' // Optional field, can be added later
+        confirm_password: formData.confirmPassword
       });
       
       if (result.success) {
-        setSuccess('Registrasi berhasil! Anda akan diarahkan ke halaman utama...');
+        setSuccess('Registrasi berhasil! Silakan cek email Anda untuk verifikasi.');
         setTimeout(() => {
-          navigate('/', { replace: true });
+          navigate('/login', { replace: true });
         }, 2000);
       } else {
         setErrors({ general: result.error });
@@ -186,7 +186,7 @@ const RegisterPage = () => {
               )}
             </div>
 
-            {/* Username Field */}
+            {/* Username Field - DIPERBAIKI */}
             <div className="space-y-2">
               <Label htmlFor="username">Username *</Label>
               <Input
@@ -344,4 +344,3 @@ const RegisterPage = () => {
 };
 
 export default RegisterPage;
-
