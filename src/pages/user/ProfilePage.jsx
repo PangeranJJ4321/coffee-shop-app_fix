@@ -118,30 +118,23 @@ const ProfilePage = () => {
         setError('');
         setSuccess('');
 
-        const dataToSend = {
-            name: editForm.name,
-            phone_number: editForm.phone_number
-        };
+        if (!editForm.email || editForm.email.trim() === '') {
+            setError('Email wajib diisi');
+            setIsSaving(false);
+            return;
+        }
 
-        if (dataToSend.name === '') dataToSend.name = null;
-        if (dataToSend.phone_number === '') dataToSend.phone_number = null;
-
+        if (!editForm.name || editForm.name.trim() === '') {
+            setError('Nama wajib diisi');
+            setIsSaving(false);
+            return;
+        }
 
         try {
-            const result = await updateProfile(user.id, dataToSend);
-
-            if (result.success) {
-                setSuccess('Profil berhasil diperbarui!');
-                setIsEditing(false);
-                setEditForm({ 
-                    name: user.name || '',
-                    email: user.email || '',
-                    phone_number: user.phone_number || ''
-                });
-                setTimeout(() => setSuccess(''), 3000);
-            } else {
-                setError(result.error);
-            }
+            const result = await updateProfile(user.id, editForm);
+            setSuccess('Profil berhasil diperbarui!');
+            setIsEditing(false);
+            setTimeout(() => setSuccess(''), 3000);
         } catch (err) {
             setError('Terjadi kesalahan saat memperbarui profil');
         } finally {
@@ -376,7 +369,6 @@ const ProfilePage = () => {
                                                             name="name"
                                                             value={editForm.name}
                                                             onChange={handleFormChange}
-                                                            required
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
@@ -387,9 +379,6 @@ const ProfilePage = () => {
                                                             type="email"
                                                             value={editForm.email}
                                                             onChange={handleFormChange}
-                                                            required
-                                                            readOnly
-                                                            className="bg-muted/50"
                                                         />
                                                     </div>
                                                     <div className="space-y-2 md:col-span-2">

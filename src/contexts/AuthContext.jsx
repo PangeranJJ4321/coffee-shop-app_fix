@@ -184,9 +184,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.put(`/users/${userId}`, updatedData);
       if (response.status === 200) {
-        // Setelah update profil, refresh data user untuk mendapatkan semua data terbaru
         await refreshUserProfile(); 
-        return { success: true, user: user }; // `user` state akan diperbarui oleh refreshUserProfile
+        return { success: true, user: user }; 
       }
       return { success: false, error: "Gagal memperbarui profil." };
     } catch (error) {
