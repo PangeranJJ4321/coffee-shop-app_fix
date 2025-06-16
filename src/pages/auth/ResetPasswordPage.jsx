@@ -41,7 +41,7 @@ const ResetPasswordPage = () => {
   // Get token from URL params
   const token = searchParams.get('token');
 
-useEffect(() => {
+  useEffect(() => {
     // Validate token on component mount
     if (!token) {
       setResetStatus('invalid');

@@ -79,7 +79,9 @@ export const AuthProvider = ({ children }) => {
 
       const response = await api.post('/auth/login', {email, password});
       const {access_token} = response.data;
+      // const {email} = response.data;
 
+      // localStorage.setItem('email', email);
       localStorage.setItem('access_token', access_token);
 
       const decodedToken = JSON.parse(atob(access_token.split('.')[1]));
@@ -116,6 +118,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
+      // const {email} = response.data;
+      // localStorage.setItem('email', email);
+      // console.log(email);
       return { success: true, message: "Registrasi berhasil! Silakan cek email Anda untuk verifikasi." };
     } catch (error) {
       console.error("Register API call error:", error.response?.data || error.message);
@@ -175,9 +180,9 @@ export const AuthProvider = ({ children }) => {
   };
 
 
-  const resetPassword = async (token, newPassword, confirmPassword) => {
+  const resetPassword = async (token, password, confirm_password) => {
     try {
-      const response = await api.post('/auth/reset-password', { token, password: newPassword, confirm_password: confirmPassword });
+      const response = await api.post('/auth/reset-password', { token, password, confirm_password });
       return response.status === 200; 
     } catch (error) {
       console.error("Reset password API call error:", error.response?.data || error.message);

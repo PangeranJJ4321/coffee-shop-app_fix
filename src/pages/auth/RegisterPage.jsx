@@ -14,7 +14,7 @@ const RegisterPage = () => {
   
   const [formData, setFormData] = useState({
     email: '',
-    username: '',
+    username: '', // Konsisten menggunakan username
     password: '',
     confirmPassword: ''
   });
@@ -109,10 +109,10 @@ const RegisterPage = () => {
 
     try {
       const result = await register({
-        name: formData.name,
+        name: formData.username, 
         email: formData.email,
         password: formData.password,
-        phone: '' // Optional field, can be added later
+        confirm_password: formData.confirmPassword
       });
       
       if (result.success) {
@@ -186,20 +186,20 @@ const RegisterPage = () => {
               )}
             </div>
 
-            {/* Username Field */}
+            {/* Username Field - DIPERBAIKI */}
             <div className="space-y-2">
-              <Label htmlFor="name">Username *</Label>
+              <Label htmlFor="username">Username *</Label>
               <Input
-                id="name"
-                name="name"
+                id="username"
+                name="username"
                 type="text"
-                placeholder="name"
-                value={formData.name}
+                placeholder="username"
+                value={formData.username}
                 onChange={handleChange}
                 disabled={isLoading}
-                className={errors.name ? 'border-red-500' : ''}
+                className={errors.username ? 'border-red-500' : ''}
               />
-              {errors.name && (
+              {errors.username && (
                 <p className="text-sm text-red-500">{errors.username}</p>
               )}
               <p className="text-xs text-muted-foreground">
@@ -344,4 +344,3 @@ const RegisterPage = () => {
 };
 
 export default RegisterPage;
-
