@@ -35,6 +35,7 @@ import {
   Sliders,
   ChevronRight
 } from 'lucide-react';
+import { ModeToggle } from '../utility/ModeToggle';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout, isAdmin } = useAuth();
@@ -234,6 +235,8 @@ const Navbar = () => {
                 )}
               </div>
             )}
+
+            <ModeToggle />
 
             {/* Cart Button - Only show in user mode */}
             {isAuthenticated && !isInAdminArea && (
