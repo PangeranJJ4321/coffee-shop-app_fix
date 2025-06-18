@@ -8,38 +8,38 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  ShoppingCart, 
-  Plus, 
-  Minus, 
-  Trash2, 
-  ArrowLeft, 
+import {
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
+  ArrowLeft,
   ArrowRight,
   Coffee,
   ShoppingBag,
   AlertCircle,
   CheckCircle,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 
 const CartPage = () => {
   const navigate = useNavigate();
-  const { 
-    cartItems, 
-    updateCartItem, 
-    removeFromCart, 
-    clearCart, 
-    getTotalItems, 
-    getTotalPrice 
+  const {
+    cartItems,
+    updateCartItem,
+    removeFromCart,
+    clearCart,
+    getTotalItems,
+    getTotalPrice
   } = useCart();
   const { isAuthenticated } = useAuth();
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState('');
 
-  // Mock promo codes
   const promoCodes = {
     'WELCOME10': { discount: 0.1, description: 'Diskon 10% untuk member baru' },
     'COFFEE20': { discount: 0.2, description: 'Diskon 20% untuk semua kopi' },
@@ -72,7 +72,7 @@ const CartPage = () => {
 
   const handleApplyPromo = () => {
     setPromoError('');
-    
+
     if (!promoCode.trim()) {
       setPromoError('Masukkan kode promo');
       return;
@@ -105,7 +105,7 @@ const CartPage = () => {
 
   const calculateShipping = () => {
     if (appliedPromo && appliedPromo.freeShipping) return 0;
-    return calculateSubtotal() > 100000 ? 0 : 10000; // Free shipping over 100k
+    return calculateSubtotal() > 100000 ? 0 : 10000;
   };
 
   const calculateTotal = () => {
@@ -117,26 +117,24 @@ const CartPage = () => {
 
   const handleCheckout = () => {
     if (cartItems.length === 0) return;
-    
+
     setIsLoading(true);
-    
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate('/checkout', {
-        state: {
-          cartItems,
-          subtotal: calculateSubtotal(),
-          discount: calculateDiscount(),
-          shipping: calculateShipping(),
-          total: calculateTotal(),
-          appliedPromo
-        }
-      });
-    }, 1000);
+
+    navigate('/checkout', {
+      state: {
+        cartItems,
+        subtotal: calculateSubtotal(),
+        discount: calculateDiscount(),
+        shipping: calculateShipping(),
+        total: calculateTotal(),
+        appliedPromo
+      }
+    });
+    setIsLoading(false); // Selesai loading untuk navigasi
   };
 
   const formatPrice = (price) => {
+    if (typeof price !== 'number') return 'Rp 0'; // Handle non-numeric
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -150,7 +148,11 @@ const CartPage = () => {
         <div className="flex items-start gap-4">
           {/* Coffee Image */}
           <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-            <Coffee className="h-8 w-8 text-muted-foreground" />
+            {item.coffee?.image_url ? ( // Gunakan image_url dari item.coffee
+              <img src={item.coffee.image_url} alt={item.coffee.name} className="w-full h-full object-cover rounded-lg" />
+            ) : (
+              <Coffee className="h-8 w-8 text-muted-foreground" />
+            )}
           </div>
 
           {/* Item Details */}
@@ -229,22 +231,29 @@ const CartPage = () => {
     </Card>
   );
 
+  // Jika belum terautentikasi, tampilkan loading atau null dan biarkan useEffect me-redirect
   if (!isAuthenticated) {
-    return null; // Will redirect in useEffect
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+        <p className="ml-4 text-muted-foreground">Mengecek autentikasi...</p>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/menu')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Lanjut Belanja
-          </Button>
+      <div className="mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/menu')}
+          className="mb-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Lanjut Belanja
+        </Button>
+
+        <div className="flex items-center gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold">Keranjang Belanja</h1>
             <p className="text-muted-foreground">
@@ -271,7 +280,7 @@ const CartPage = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between">
@@ -362,14 +371,14 @@ const CartPage = () => {
                       <span>Subtotal ({getTotalItems()} item)</span>
                       <span>{formatPrice(calculateSubtotal())}</span>
                     </div>
-                    
+
                     {appliedPromo && appliedPromo.discount > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span>Diskon ({appliedPromo.code})</span>
                         <span>-{formatPrice(calculateDiscount())}</span>
                       </div>
                     )}
-                    
+
                     <div className="flex justify-between">
                       <span>Ongkos Kirim</span>
                       <span>
@@ -380,9 +389,9 @@ const CartPage = () => {
                         )}
                       </span>
                     </div>
-                    
+
                     <Separator />
-                    
+
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
                       <span className="text-primary">{formatPrice(calculateTotal())}</span>
@@ -398,8 +407,8 @@ const CartPage = () => {
                     </Alert>
                   )}
 
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     size="lg"
                     onClick={handleCheckout}
                     disabled={isLoading || cartItems.length === 0}
@@ -418,8 +427,8 @@ const CartPage = () => {
                   </Button>
 
                   <div className="text-center">
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       onClick={() => navigate('/menu')}
                       className="text-sm"
                     >
@@ -455,4 +464,3 @@ const CartPage = () => {
 };
 
 export default CartPage;
-

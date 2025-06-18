@@ -1,0 +1,8 @@
+  const resetPaymentCreation = useCallback(() => {
+    if (isMountedRef.current) {
+      hasCreatedPayment.current = false;
+      setError(null);
+      setPaymentStatus('PENDING');
+      setInitialLoading(true);
+    }
+  }, []);

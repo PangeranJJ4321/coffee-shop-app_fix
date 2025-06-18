@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert'; // Import Alert
+
 import { 
   Search, 
   Filter, 
@@ -22,28 +24,36 @@ import {
   Eye,
   RotateCcw,
   Calendar,
+  CreditCard,
   MapPin,
   Phone,
-  User,
+  User as UserIcon, 
   ShoppingBag,
   AlertCircle,
-  Star
+  Star,
+  Loader2, // Untuk spinner
+  Send // Untuk submit rating
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea'; // Untuk review
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'; // Jika rating pakai RadioGroup
 
 const OrderHistoryPage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const { addToCart } = useCart();
+  const { isAuthenticated, api } = useAuth(); // Ambil `api` dari useAuth
+  const { addToCart } = useCart(); // Ambil `addToCart`
   
-  const [orders, setOrders] = useState([]);
-  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [orders, setOrders] = useState([]); // Daftar order yang difetch dari API
+  const [filteredOrders, setFilteredOrders] = useState([]); // Hasil filter/sort di frontend
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'highest', 'lowest'
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null); // Detail order untuk modal
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(''); // Untuk pesan error fetching orders
+  const [isModalLoading, setIsModalLoading] = useState(false); // Untuk loading modal detail
+  const [isDialogOpen, setIsDialogOpen] = useState(false); // State untuk mengontrol dialog
 
-  // Order status configurations
+  // Order status configurations (sesuai backend OrderStatus enum) Ini itu untuk pembayaran aja
   const orderStatuses = {
     'PENDING': { 
       label: 'Menunggu Pembayaran', 
@@ -51,25 +61,13 @@ const OrderHistoryPage = () => {
       icon: Clock,
       description: 'Pesanan menunggu pembayaran'
     },
-    'PAID': { 
-      label: 'Dibayar', 
-      color: 'bg-blue-100 text-blue-800',
-      icon: CheckCircle,
-      description: 'Pembayaran berhasil, pesanan sedang diproses'
-    },
     'PROCESSING': { 
       label: 'Diproses', 
-      color: 'bg-purple-100 text-purple-800',
+      color: 'bg-blue-100 text-blue-800',
       icon: Package,
-      description: 'Pesanan sedang disiapkan'
+      description: 'Pesanan sedang diproses atau disiapkan'
     },
-    'READY': { 
-      label: 'Siap', 
-      color: 'bg-green-100 text-green-800',
-      icon: CheckCircle,
-      description: 'Pesanan siap untuk diambil/dikirim'
-    },
-    'DELIVERED': { 
+    'COMPLETED': { 
       label: 'Selesai', 
       color: 'bg-green-100 text-green-800',
       icon: CheckCircle,
@@ -81,181 +79,168 @@ const OrderHistoryPage = () => {
       icon: XCircle,
       description: 'Pesanan dibatalkan'
     }
+   
   };
 
-  // Mock order data
-  const mockOrders = [
-    {
-      id: 1703123456789,
-      items: [
-        {
-          id: 1,
-          coffee: { id: 1, name: 'Espresso Premium', price: 25000 },
-          variants: [{ name: 'Medium' }, { name: 'Normal Sugar' }],
-          quantity: 2,
-          subtotal: 50000
-        },
-        {
-          id: 2,
-          coffee: { id: 2, name: 'Cappuccino Special', price: 32000 },
-          variants: [{ name: 'Large' }, { name: 'Oat Milk' }],
-          quantity: 1,
-          subtotal: 40000
-        }
-      ],
-      subtotal: 90000,
-      discount: 9000,
-      shipping: 0,
-      total: 81000,
-      appliedPromo: { code: 'WELCOME10', description: 'Diskon 10%' },
-      deliveryInfo: {
-        name: 'John Doe',
-        phone: '081234567890',
-        address: 'Jl. Sudirman No. 123, Jakarta Pusat',
-        deliveryMethod: 'delivery'
-      },
-      status: 'DELIVERED',
-      createdAt: '2024-01-15T10:30:00Z',
-      paidAt: '2024-01-15T10:35:00Z',
-      estimatedDelivery: '2024-01-15T11:15:00Z',
-      deliveredAt: '2024-01-15T11:10:00Z',
-      rating: 5,
-      review: 'Kopi sangat enak dan pengiriman cepat!'
-    },
-    {
-      id: 1703123456788,
-      items: [
-        {
-          id: 3,
-          coffee: { id: 3, name: 'Latte Art', price: 35000 },
-          variants: [{ name: 'Medium' }, { name: 'Less Sugar' }],
-          quantity: 1,
-          subtotal: 35000
-        }
-      ],
-      subtotal: 35000,
-      discount: 0,
-      shipping: 10000,
-      total: 45000,
-      deliveryInfo: {
-        name: 'John Doe',
-        phone: '081234567890',
-        address: 'Jl. Sudirman No. 123, Jakarta Pusat',
-        deliveryMethod: 'pickup'
-      },
-      status: 'READY',
-      createdAt: '2024-01-14T14:20:00Z',
-      paidAt: '2024-01-14T14:25:00Z',
-      estimatedDelivery: '2024-01-14T15:00:00Z'
-    },
-    {
-      id: 1703123456787,
-      items: [
-        {
-          id: 4,
-          coffee: { id: 4, name: 'Americano', price: 22000 },
-          variants: [{ name: 'Large' }, { name: 'No Sugar' }],
-          quantity: 3,
-          subtotal: 66000
-        }
-      ],
-      subtotal: 66000,
-      discount: 0,
-      shipping: 0,
-      total: 66000,
-      deliveryInfo: {
-        name: 'John Doe',
-        phone: '081234567890',
-        address: 'Jl. Sudirman No. 123, Jakarta Pusat',
-        deliveryMethod: 'delivery'
-      },
-      status: 'PROCESSING',
-      createdAt: '2024-01-13T09:15:00Z',
-      paidAt: '2024-01-13T09:20:00Z',
-      estimatedDelivery: '2024-01-13T10:00:00Z'
+
+  // Fetch orders dari API
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      if (!isAuthenticated) {
+        // Jika belum auth, jangan fetch, biarkan useEffect di atas me-redirect
+        setIsLoading(false);
+        return;
+      }
+
+      const queryParams = new URLSearchParams();
+      if (statusFilter !== 'all') {
+        queryParams.append('status', statusFilter.toUpperCase());
+      }
+    
+
+      const response = await api.get(`/orders?${queryParams.toString()}`);
+      setOrders(response.data); 
+
+    } catch (err) {
+      console.error("Failed to fetch orders:", err.response?.data || err.message);
+      setError(err.response?.data?.detail || 'Gagal memuat riwayat pesanan. Silakan coba lagi nanti.');
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  }, [isAuthenticated, api, statusFilter]); // Tambahkan statusFilter ke dependensi
 
   useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+
+  // Filter dan Sort di Frontend (setelah data difetch)
+  useEffect(() => {
+    let currentFiltered = [...orders];
+
+    // Filter by search term (order_id atau coffee_name)
+    if (searchTerm) {
+      const lowercasedSearch = searchTerm.toLowerCase();
+      currentFiltered = currentFiltered.filter(order =>
+        order.order_id?.toLowerCase().includes(lowercasedSearch) ||
+        order.order_items?.some(item => // order_items harus ada
+          item.coffee_name?.toLowerCase().includes(lowercasedSearch)
+        )
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      currentFiltered = currentFiltered.filter(order => order.status === statusFilter.toUpperCase());
+    }
+
+
+    // Sort orders
+    currentFiltered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.ordered_at) - new Date(a.ordered_at); 
+        case 'oldest':
+          return new Date(a.ordered_at) - new Date(b.ordered_at);
+        case 'highest':
+          return b.total_price - a.total_price; 
+        case 'lowest':
+          return a.total_price - b.total_price;
+        default:
+          return new Date(b.ordered_at) - new Date(a.ordered_at);
+      }
+    });
+
+    setFilteredOrders(currentFiltered);
+  }, [orders, searchTerm, statusFilter, sortBy]);
+
+
+  const handleReorder = (orderToReorder) => {
+    console.log(orderToReorder);
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
 
-    // Load orders from localStorage and merge with mock data
-    setIsLoading(true);
-    setTimeout(() => {
-      const savedOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-      const allOrders = [...savedOrders, ...mockOrders];
-      setOrders(allOrders);
-      setFilteredOrders(allOrders);
-      setIsLoading(false);
-    }, 1000);
-  }, [isAuthenticated, navigate]);
+    orderToReorder.order_items?.forEach(item => {
+        const coffeeForCart = {
+            id: item.coffee.id, 
+            name: item.coffee.name, 
+            price: item.coffee.price, 
+            image_url: item.coffee.image_url, 
+            description: item.coffee.description, 
+        };
 
-  useEffect(() => {
-    let filtered = [...orders];
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(order =>
-        order.id.toString().includes(searchTerm) ||
-        order.items.some(item => 
-          item.coffee.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    }
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.status === statusFilter);
-    }
-
-    // Sort orders
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
-        case 'highest':
-          return b.total - a.total;
-        case 'lowest':
-          return a.total - b.total;
-        default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-    });
-
-    setFilteredOrders(filtered);
-  }, [orders, searchTerm, statusFilter, sortBy]);
-
-  const handleReorder = (order) => {
-    order.items.forEach(item => {
-      addToCart(item.coffee, item.variants, item.quantity);
+        // Varian juga perlu di-map ke format CartContext: { variant_id, name, additional_price, variant_type }
+        const variantsForCart = item.variants.map(v => ({
+            variant_id: v.variant_id,
+            name: v.name,
+            additional_price: v.additional_price,
+            variant_type: v.variant_type // asumsi ada
+        }));
+        addToCart(coffeeForCart, variantsForCart, item.quantity);
     });
     navigate('/cart');
   };
 
-  const handleRateOrder = (orderId, rating, review) => {
-    const updatedOrders = orders.map(order =>
-      order.id === orderId
-        ? { ...order, rating, review }
-        : order
-    );
-    setOrders(updatedOrders);
-    
-    // Update localStorage
-    const savedOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-    const updatedSavedOrders = savedOrders.map(order =>
-      order.id === orderId
-        ? { ...order, rating, review }
-        : order
-    );
-    localStorage.setItem('userOrders', JSON.stringify(updatedSavedOrders));
+  const handleRateOrder = async (orderIdToRate, rating, review) => {
+    if (!isAuthenticated) {
+      alert("Anda harus login untuk memberikan rating.");
+      return;
+    }
+    try {
+
+        const orderToRate = orders.find(o => o.id === orderIdToRate);
+        if (!orderToRate || !orderToRate.order_items || orderToRate.order_items.length === 0) {
+            alert("Tidak dapat memberikan rating: Detail order tidak lengkap.");
+            return;
+        }
+        const firstCoffeeIdInOrder = orderToRate.order_items[0].coffee_id; 
+        
+        const response = await api.post(`/ratings/coffee/${firstCoffeeIdInOrder}`, { rating, review });
+        
+        if (response.status === 201) {
+            alert("Rating dan ulasan berhasil dikirim!");
+            fetchOrders(); 
+        } else {
+            alert("Gagal mengirim rating: " + (response.data.detail || "Terjadi kesalahan."));
+        }
+    } catch (err) {
+        console.error("Error submitting rating:", err.response?.data || err.message);
+        alert("Gagal mengirim rating: " + (err.response?.data?.detail || "Terjadi kesalahan jaringan."));
+    }
   };
 
+  const handleCancelOrder = async (orderIdToCancel) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (!window.confirm('Apakah Anda yakin ingin membatalkan pesanan ini?')) {
+      return;
+    }
+    setIsLoading(true); // Set loading saat membatalkan
+    try {
+        // DELETE /orders/{order_id}
+        const response = await api.delete(`/orders/${orderIdToCancel}`);
+        if (response.status === 204) { // Status 204 No Content
+            alert("Pesanan berhasil dibatalkan.");
+            fetchOrders(); // Muat ulang daftar pesanan
+        } else {
+            alert("Gagal membatalkan pesanan.");
+        }
+    } catch (err) {
+        console.error("Error canceling order:", err.response?.data || err.message);
+        alert("Gagal membatalkan pesanan: " + (err.response?.data?.detail || "Terjadi kesalahan."));
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+
   const formatPrice = (price) => {
+    if (typeof price !== 'number') return 'Rp 0';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -264,7 +249,13 @@ const OrderHistoryPage = () => {
   };
 
   const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleString('id-ID', {
+    if (!dateString) return '-';
+    // `ordered_at` dari backend adalah datetime string
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) { // Cek tanggal tidak valid
+      return dateString;
+    }
+    return date.toLocaleString('id-ID', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -275,6 +266,7 @@ const OrderHistoryPage = () => {
 
   const getStatusBadge = (status) => {
     const config = orderStatuses[status];
+    if (!config) return null; // Handle undefined status
     const Icon = config.icon;
     
     return (
@@ -285,14 +277,15 @@ const OrderHistoryPage = () => {
     );
   };
 
+  // Komponen OrderCard
   const OrderCard = ({ order }) => (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg">Pesanan #{order.id}</CardTitle>
+            <CardTitle className="text-lg">Pesanan #{order.order_id}</CardTitle>
             <CardDescription>
-              {formatDateTime(order.createdAt)}
+              {formatDateTime(order.ordered_at)}
             </CardDescription>
           </div>
           {getStatusBadge(order.status)}
@@ -301,13 +294,26 @@ const OrderHistoryPage = () => {
       <CardContent className="space-y-4">
         {/* Order Items */}
         <div className="space-y-2">
-          {order.items.slice(0, 2).map((item) => (
+          {order.order_items && order.order_items.slice(0, 2).map((item) => (
             <div key={item.id} className="flex items-center gap-3">
               <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                <Coffee className="h-4 w-4 text-muted-foreground" />
+                {item.coffee?.image_url ? (
+                  <img src={item.coffee.image_url} alt={item.coffee.name} className="w-full h-full object-cover rounded" />
+                ) : (
+                  <Coffee className="h-4 w-4 text-muted-foreground" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{item.coffee.name}</p>
+                <p className="font-medium text-sm truncate">{item.coffee_name}</p>
+                {item.variants && item.variants.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {item.variants.map((variant, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {variant.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {item.quantity}x {formatPrice(item.subtotal / item.quantity)}
                 </p>
@@ -317,9 +323,9 @@ const OrderHistoryPage = () => {
               </span>
             </div>
           ))}
-          {order.items.length > 2 && (
+          {order.order_items && order.order_items.length > 2 && (
             <p className="text-sm text-muted-foreground">
-              +{order.items.length - 2} item lainnya
+              +{order.order_items.length - 2} item lainnya
             </p>
           )}
         </div>
@@ -330,35 +336,85 @@ const OrderHistoryPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Total</p>
-            <p className="font-bold text-primary">{formatPrice(order.total)}</p>
+            <p className="font-bold text-primary">{formatPrice(order.total_price)}</p>
           </div>
           <div className="flex gap-2">
-            <Dialog>
+            {/* Tombol Detail (tetap sama) */}
+            <Dialog open={isDialogOpen && selectedOrderDetails?.id === order.id} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setSelectedOrder(order)}
+                  onClick={async () => {
+                    setIsModalLoading(true);
+                    setIsDialogOpen(true);
+                    try {
+                        const response = await api.get(`/orders/${order.id}`); // cite: order_service.py
+                        console.log("Fetched order details:", response.data);
+                        setSelectedOrderDetails(response.data);
+                    } catch (err) {
+                        console.error("Failed to fetch order details for modal:", err.response?.data || err.message);
+                        setError(err.response?.data?.detail || "Gagal memuat detail pesanan.");
+                        setIsDialogOpen(false);
+                    } finally {
+                        setIsModalLoading(false);
+                    }
+                  }}
                 >
                   <Eye className="h-4 w-4 mr-1" />
                   Detail
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Detail Pesanan #{order.id}</DialogTitle>
-                  <DialogDescription>
-                    {formatDateTime(order.createdAt)}
-                  </DialogDescription>
-                </DialogHeader>
-                <OrderDetailModal order={order} onRate={handleRateOrder} />
+                {isModalLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Memuat detail...</span>
+                  </div>
+                ) : selectedOrderDetails ? (
+                  <OrderDetailModal 
+                    order={selectedOrderDetails} 
+                    onRate={handleRateOrder} 
+                    onClose={() => setIsDialogOpen(false)} 
+                    onCancel={handleCancelOrder} 
+                    onReorder={() => handleReorder(selectedOrderDetails)}
+                  />
+                ) : (
+                  <div className="text-center py-10 text-red-500">Gagal memuat detail pesanan.</div>
+                )}
               </DialogContent>
             </Dialog>
             
-            {order.status === 'DELIVERED' && (
+            {/* Tombol "Lihat Pembayaran" atau "Lanjutkan Pembayaran" */}
+            {(order.status === 'PENDING' || order.status === 'PROCESSING') && (
+              <Button
+                variant="default" // Atau variant lain yang Anda suka
+                size="sm"
+                onClick={() => navigate(`/payment/${order.id}`)} // Arahkan ke PaymentPage dengan order ID
+              >
+                <CreditCard className="h-4 w-4 mr-1" />
+                {order.status === 'PENDING' ? 'Bayar Sekarang' : 'Lihat Tagihan'}
+              </Button>
+            )}
+
+            {/* Tombol Batalkan Pesanan */}
+            {order.status === 'PENDING' && (
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => handleCancelOrder(order.id)}
+                disabled={isLoading}
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Batalkan
+              </Button>
+            )}
+
+            {order.status === 'COMPLETED' && (
               <Button 
                 size="sm"
                 onClick={() => handleReorder(order)}
+                disabled={isLoading}
               >
                 <RotateCcw className="h-4 w-4 mr-1" />
                 Pesan Lagi
@@ -367,47 +423,95 @@ const OrderHistoryPage = () => {
           </div>
         </div>
 
-        {/* Delivery Info */}
-        <div className="text-sm text-muted-foreground">
+        {/* Delivery Info - Ringkasan singkat di card utama */}
+        <div className="text-sm text-muted-foreground mt-3">
           <div className="flex items-center gap-1">
-            {order.deliveryInfo.deliveryMethod === 'delivery' ? (
-              <Truck className="h-3 w-3" />
-            ) : (
-              <Package className="h-3 w-3" />
+            {order.order_items && order.order_items[0]?.coffee?.coffee_shop?.name && (
+              <>
+                <MapPin className="h-3 w-3" />
+                <span>{order.order_items[0].coffee.coffee_shop.name}</span>
+                <Separator orientation="vertical" className="h-4 mx-1" />
+              </>
             )}
-            <span>
-              {order.deliveryInfo.deliveryMethod === 'delivery' ? 'Diantar' : 'Ambil di toko'}
-            </span>
+            {order.delivery_method ? ( // Gunakan properti delivery_method baru dari order
+                order.delivery_method === 'delivery' ? (
+                    <> <Truck className="h-3 w-3" /> <span>Diantar</span> </>
+                ) : (
+                    <> <Package className="h-3 w-3" /> <span>Ambil di toko</span> </>
+                )
+            ) : ( // Fallback jika properti delivery_method tidak ada
+                order.payment_note && order.payment_note.includes("Delivery Method: delivery") ? (
+                    <> <Truck className="h-3 w-3" /> <span>Diantar</span> </>
+                ) : (
+                    <> <Package className="h-3 w-3" /> <span>Ambil di toko</span> </>
+                )
+            )}
           </div>
         </div>
       </CardContent>
     </Card>
   );
 
-  const OrderDetailModal = ({ order, onRate }) => {
-    const [rating, setRating] = useState(order.rating || 0);
-    const [review, setReview] = useState(order.review || '');
+  // Komponen OrderDetailModal
+  const OrderDetailModal = ({ order, onRate, onClose, onCancel, onReorder }) => {
+    const { api } = useAuth(); 
+    const [rating, setRating] = useState(order.rating || 0); // Asumsi order.rating ada jika sudah dinilai
+    const [review, setReview] = useState(order.review || ''); // Asumsi order.review ada jika sudah dinilai
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+    const [ratingModalError, setRatingModalError] = useState('');
+    const [ratingModalSuccess, setRatingModalSuccess] = useState('');
 
     const handleSubmitReview = async () => {
+      if (rating === 0) {
+        setRatingModalError('Harap berikan rating (bintang).');
+        return;
+      }
       setIsSubmittingReview(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onRate(order.id, rating, review);
-      setIsSubmittingReview(false);
+      setRatingModalError('');
+      setRatingModalSuccess('');
+      try {
+        const coffeeIdToRate = order.order_items[0]?.coffee_id; 
+        if (!coffeeIdToRate) {
+            setRatingModalError("Tidak ada kopi untuk dinilai di pesanan ini.");
+            setIsSubmittingReview(false);
+            return;
+        }
+
+        const response = await api.post(`/ratings/coffee/${coffeeIdToRate}`, { 
+            rating: rating, 
+            review: review 
+        });
+        
+        if (response.status === 201) {
+            setRatingModalSuccess('Ulasan berhasil dikirim!');
+            onRate(order.id, rating, review); // Panggil fungsi dari parent untuk update UI utama
+            setTimeout(() => {
+                setRatingModalSuccess('');
+                onClose(); 
+            }, 1500);
+        } else {
+            setRatingModalError(response.data?.detail || 'Gagal mengirim ulasan.');
+        }
+      } catch (error) {
+        console.error("Error submitting review:", error.response?.data || error.message);
+        setRatingModalError(error.response?.data?.detail || 'Terjadi kesalahan saat mengirim ulasan.');
+      } finally {
+        setIsSubmittingReview(false);
+      }
     };
 
-    const renderStars = (currentRating, interactive = false) => {
+    const renderStars = (currentRating, interactive = false, onStarClick = null) => {
       return (
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <Star
               key={star}
-              className={`h-4 w-4 ${
+              className={`h-5 w-5 ${ // Ukuran bintang lebih besar di modal
                 star <= currentRating 
                   ? 'fill-yellow-400 text-yellow-400' 
                   : 'text-muted-foreground'
               } ${interactive ? 'cursor-pointer hover:text-yellow-400' : ''}`}
-              onClick={interactive ? () => setRating(star) : undefined}
+              onClick={interactive ? () => onStarClick(star) : undefined}
             />
           ))}
         </div>
@@ -420,20 +524,37 @@ const OrderHistoryPage = () => {
         <div className="flex items-center gap-3">
           {getStatusBadge(order.status)}
           <span className="text-sm text-muted-foreground">
-            {orderStatuses[order.status].description}
+            {orderStatuses[order.status]?.description}
           </span>
         </div>
+
+        {/* Success/Error Messages for Rating */}
+        {ratingModalSuccess && (
+          <Alert className="border-green-200 bg-green-50 text-green-800">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>{ratingModalSuccess}</AlertDescription>
+          </Alert>
+        )}
+        {ratingModalError && (
+          <Alert variant="destructive">
+            <AlertDescription>{ratingModalError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Order Items */}
         <div className="space-y-4">
           <h4 className="font-medium">Item Pesanan</h4>
-          {order.items.map((item) => (
+          {order.order_items.map((item) => (
             <div key={item.id} className="flex gap-3 p-3 border rounded-lg">
               <div className="w-12 h-12 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                <Coffee className="h-6 w-6 text-muted-foreground" />
+                {item.coffee?.image_url ? ( // item.coffee.image_url dari OrderItemResponse jika di-join
+                  <img src={item.coffee.image_url} alt={item.coffee.name} className="w-full h-full object-cover rounded" />
+                ) : (
+                  <Coffee className="h-6 w-6 text-muted-foreground" />
+                )}
               </div>
               <div className="flex-1">
-                <p className="font-medium">{item.coffee.name}</p>
+                <p className="font-medium">{item.coffee_name}</p>
                 {item.variants && item.variants.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {item.variants.map((variant, index) => (
@@ -460,9 +581,13 @@ const OrderHistoryPage = () => {
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>{formatPrice(order.subtotal)}</span>
+              <span>{formatPrice(order.total_price)}</span> {/* total_price dari backend */}
             </div>
-            {order.discount > 0 && (
+            
+            {/* Discount dan Shipping: Asumsi ini akan dihitung atau didapat dari backend OrderWithItemsResponse */}
+            {/* order.discount dan order.shipping tidak ada di OrderResponse. Jika ada, mereka perlu di-fetch */}
+            {/* Jika backend tidak mengembalikan diskon/shipping, bagian ini akan kosong */}
+            {/* {order.discount > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Diskon {order.appliedPromo?.code}</span>
                 <span>-{formatPrice(order.discount)}</span>
@@ -477,11 +602,12 @@ const OrderHistoryPage = () => {
                   formatPrice(order.shipping)
                 )}
               </span>
-            </div>
+            </div> */}
+
             <Separator />
             <div className="flex justify-between font-bold">
               <span>Total</span>
-              <span className="text-primary">{formatPrice(order.total)}</span>
+              <span className="text-primary">{formatPrice(order.total_price)}</span>
             </div>
           </div>
         </div>
@@ -489,26 +615,26 @@ const OrderHistoryPage = () => {
         {/* Delivery Info */}
         <div className="space-y-2">
           <h4 className="font-medium">
-            Informasi {order.deliveryInfo.deliveryMethod === 'delivery' ? 'Pengiriman' : 'Pengambilan'}
+            Informasi {order.delivery_method === 'delivery' ? 'Pengiriman' : 'Pengambilan'}
           </h4>
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>{order.deliveryInfo.name}</span>
+              <UserIcon className="h-4 w-4 text-muted-foreground" />
+              <span>{order.recipient_name}</span>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>{order.deliveryInfo.phone}</span>
+              <span>{order.recipient_phone_number}</span>
             </div>
-            {order.deliveryInfo.deliveryMethod === 'delivery' && (
+            {order.deliveryInfo?.deliveryMethod === 'delivery' && (
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <span>{order.deliveryInfo.address}</span>
+                <span>{order.delivery_address}</span>
               </div>
             )}
-            {order.deliveryInfo.notes && (
+            {order.deliveryInfo?.notes && (
               <div className="p-2 bg-muted/50 rounded">
-                <strong>Catatan:</strong> {order.deliveryInfo.notes}
+                <strong>Catatan:</strong> {order.order_notes}
               </div>
             )}
           </div>
@@ -520,46 +646,40 @@ const OrderHistoryPage = () => {
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-primary rounded-full"></div>
-              <span>Pesanan dibuat: {formatDateTime(order.createdAt)}</span>
+              <span>Pesanan dibuat: {formatDateTime(order.ordered_at)}</span>
             </div>
-            {order.paidAt && (
+            {order.paid_at && ( // Gunakan `paid_at` dari OrderWithItemsResponse
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Pembayaran berhasil: {formatDateTime(order.paidAt)}</span>
+                <span>Pembayaran berhasil: {formatDateTime(order.paid_at)}</span>
               </div>
             )}
-            {order.deliveredAt && (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Pesanan selesai: {formatDateTime(order.deliveredAt)}</span>
-              </div>
-            )}
+            {/* Anda bisa menambahkan status lain dari order.status_history jika ada */}
           </div>
         </div>
 
         {/* Rating & Review */}
-        {order.status === 'DELIVERED' && (
+        {order.status === 'COMPLETED' && ( // Hanya bisa memberikan rating jika order sudah COMPLETED
           <div className="space-y-4">
             <h4 className="font-medium">Rating & Ulasan</h4>
-            {order.rating ? (
+            {order.rating && order.review ? ( // Jika order sudah dinilai (rating dan review ada di OrderWithItemsResponse)
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   {renderStars(order.rating)}
                   <span className="text-sm text-muted-foreground">({order.rating}/5)</span>
                 </div>
-                {order.review && (
-                  <p className="text-sm bg-muted/50 p-3 rounded-lg">{order.review}</p>
-                )}
+                <p className="text-sm bg-muted/50 p-3 rounded-lg">{order.review}</p>
               </div>
             ) : (
+              // Form rating
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Berikan Rating</label>
-                  {renderStars(rating, true)}
+                  {renderStars(rating, true, setRating)} {/* Pastikan setRating */}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Tulis Ulasan (Opsional)</label>
-                  <textarea
+                  <Textarea
                     value={review}
                     onChange={(e) => setReview(e.target.value)}
                     placeholder="Bagikan pengalaman Anda..."
@@ -572,7 +692,11 @@ const OrderHistoryPage = () => {
                   disabled={rating === 0 || isSubmittingReview}
                   size="sm"
                 >
-                  {isSubmittingReview ? 'Mengirim...' : 'Kirim Ulasan'}
+                  {isSubmittingReview ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengirim...
+                      </>
+                  ) : 'Kirim Ulasan'}
                 </Button>
               </div>
             )}
@@ -582,6 +706,7 @@ const OrderHistoryPage = () => {
     );
   };
 
+  // State loading untuk halaman utama
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -594,6 +719,19 @@ const OrderHistoryPage = () => {
       </div>
     );
   }
+
+  // Pesan error jika gagal memuat orders
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+          <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={fetchOrders} className="mt-4">Coba Lagi</Button>
+      </div>
+    );
+  }
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -643,8 +781,8 @@ const OrderHistoryPage = () => {
               <SelectContent>
                 <SelectItem value="newest">Terbaru</SelectItem>
                 <SelectItem value="oldest">Terlama</SelectItem>
-                <SelectItem value="highest">Tertinggi</SelectItem>
-                <SelectItem value="lowest">Terendah</SelectItem>
+                <SelectItem value="highest">Total Tertinggi</SelectItem> {/* total_price */}
+                <SelectItem value="lowest">Total Terendah</SelectItem> {/* total_price */}
               </SelectContent>
             </Select>
           </div>
@@ -698,8 +836,9 @@ const OrderHistoryPage = () => {
         )}
 
         {/* Load More (for pagination in real app) */}
-        {filteredOrders.length > 0 && filteredOrders.length >= 10 && (
-          <div className="text-center">
+        {/* Jika Anda memiliki pagination di backend, ini akan relevan */}
+        {filteredOrders.length > 0 && filteredOrders.length >= 20 && ( // Asumsi pagination setiap 20 item
+          <div className="text-center mt-8">
             <Button variant="outline" size="lg">
               Muat Lebih Banyak
             </Button>
@@ -711,4 +850,3 @@ const OrderHistoryPage = () => {
 };
 
 export default OrderHistoryPage;
-

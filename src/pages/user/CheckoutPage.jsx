@@ -12,11 +12,11 @@ import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Clock, 
-  CreditCard, 
+import {
+  ArrowLeft,
+  MapPin,
+  Clock,
+  CreditCard,
   Coffee,
   CheckCircle,
   AlertCircle,
@@ -24,19 +24,25 @@ import {
   ArrowRight,
   QrCode,
   Truck,
-  Store
+  Store,
+  User as UserIcon,
+  Phone,
+  Clock10
 } from 'lucide-react';
+import { useCallback } from 'react';
+
+const COFFEE_SHOP_ID = "ed634a6f-c12d-4ed4-8975-1926a2ee4a43";
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, api } = useAuth();
   const { clearCart } = useCart();
-  
-  const [orderData, setOrderData] = useState(null);
+
+  const [orderDataState, setOrderDataState] = useState(null);
   const [deliveryInfo, setDeliveryInfo] = useState({
     name: '',
-    phone: '',
+    phone_number: '',
     address: '',
     notes: '',
     deliveryMethod: 'delivery' // 'delivery' or 'pickup'
@@ -47,13 +53,14 @@ const CheckoutPage = () => {
   const [errors, setErrors] = useState({});
 
   // Delivery time slots
-  const timeSlots = [
+  const mockTimeSlots = [
     { id: 'asap', label: 'Secepatnya (30-45 menit)', available: true },
     { id: '1hour', label: '1 jam dari sekarang', available: true },
     { id: '2hour', label: '2 jam dari sekarang', available: true },
     { id: 'evening', label: 'Sore hari (17:00-19:00)', available: true },
     { id: 'tomorrow', label: 'Besok pagi (09:00-11:00)', available: true }
   ];
+  const [timeSlots, setTimeSlots] = useState(mockTimeSlots);
 
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('asap');
 
@@ -64,23 +71,41 @@ const CheckoutPage = () => {
     }
 
     // Get order data from cart page
-    const orderState = location.state;
-    if (!orderState || !orderState.cartItems || orderState.cartItems.length === 0) {
+    const orderStateFromLocation = location.state;
+    if (!orderStateFromLocation || !orderStateFromLocation.cartItems || orderStateFromLocation.cartItems.length === 0) {
       navigate('/cart');
       return;
     }
 
-    setOrderData(orderState);
+    setOrderDataState(orderStateFromLocation);
 
-    // Pre-fill user information
+    // Pre-fill user information dari AuthContext
     if (user) {
       setDeliveryInfo(prev => ({
         ...prev,
         name: user.name || '',
-        phone: user.phone || ''
+        phone: user.phone_number || ''
       }));
     }
   }, [isAuthenticated, location.state, navigate, user]);
+
+  const fetchAvailableTimeSlots = useCallback(async () => {
+    // Jika Anda ingin slot waktu dinamis berdasarkan tanggal, Anda bisa fetch di sini
+    // const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+    // try {
+    //   const response = await api.get(`/coffee-shops/${COFFEE_SHOP_ID}/available-slots?date=${today}`);
+    //   // Anda perlu memproses response.data menjadi format {id, label, available}
+    //   // Contoh: response.data.map(slot => ({id: slot.id, label: `${slot.start_time}-${slot.end_time}`, available: slot.max_capacity > 0}))
+    //   setTimeSlots(processedSlots);
+    // } catch (err) {
+    //   console.error("Failed to fetch time slots:", err);
+    //   // Tangani error
+    // }
+  }, [api]);
+
+  useEffect(() => {
+    fetchAvailableTimeSlots();
+  }, [fetchAvailableTimeSlots]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -88,7 +113,7 @@ const CheckoutPage = () => {
       ...prev,
       [name]: value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
@@ -105,10 +130,10 @@ const CheckoutPage = () => {
       newErrors.name = 'Nama wajib diisi';
     }
 
-    if (!deliveryInfo.phone.trim()) {
-      newErrors.phone = 'Nomor telepon wajib diisi';
-    } else if (!/^08\d{8,11}$/.test(deliveryInfo.phone)) {
-      newErrors.phone = 'Format nomor telepon tidak valid';
+    if (!deliveryInfo.phone_number.trim()) {
+      newErrors.phone_number = 'Nomor telepon wajib diisi';
+    } else if (!/^\+?\d{8,15}$/.test(deliveryInfo.phone_number)) {
+      newErrors.phone_number = 'Format nomor telepon tidak valid. Gunakan format internasional (cth: +628123...).';
     }
 
     if (deliveryInfo.deliveryMethod === 'delivery' && !deliveryInfo.address.trim()) {
@@ -124,7 +149,7 @@ const CheckoutPage = () => {
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
-    
+
     const formErrors = validateForm();
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
@@ -132,74 +157,74 @@ const CheckoutPage = () => {
     }
 
     setIsProcessing(true);
+    setErrors({});
+
 
     try {
-      // Simulate order creation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Create order object
-      const order = {
-        id: Date.now(),
-        items: orderData.cartItems,
-        subtotal: orderData.subtotal,
-        discount: orderData.discount,
-        shipping: orderData.shipping,
-        total: orderData.total,
-        appliedPromo: orderData.appliedPromo,
-        deliveryInfo,
-        paymentMethod,
-        selectedTimeSlot,
-        status: 'PENDING',
-        createdAt: new Date().toISOString(),
-        estimatedDelivery: calculateEstimatedDelivery()
+      const orderItems = orderDataState.cartItems.map(item => ({
+        coffee_id: item.coffeeId,
+        quantity: item.quantity,
+        variants: item.variants.map(v => ({ variant_id: v.variant_id }))
+      }));
+
+      const orderPayload = {
+        order_items: orderItems,
+        delivery_info: {
+          name: deliveryInfo.name,
+          phone_number: deliveryInfo.phone_number,
+          address: deliveryInfo.address,
+          notes: deliveryInfo.notes,
+          delivery_method: deliveryInfo.deliveryMethod
+        }
       };
 
-      // Save order to localStorage (in real app, this would be sent to backend)
-      const existingOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-      existingOrders.unshift(order);
-      localStorage.setItem('userOrders', JSON.stringify(existingOrders));
+      const response = await api.post('/orders/', orderPayload);
+      const createOrder = response.data;
 
-      // Clear cart
+      // Clear cart setelah pesanan dibuat di backend
       clearCart();
 
-      // Navigate to payment page
-      navigate(`/payment/${order.id}`, {
-        state: { order }
+      // Navigasi kehalamamn pembayaran dengan order Id
+      navigate(`/payment/${createOrder.id}`, {
+        state: { order: createOrder }
       });
 
+      localStorage.setItem('userOrders', JSON.stringify([...JSON.parse(localStorage.getItem('userOrders') || '[]'), createOrder]));
     } catch (error) {
+      console.error("Failed to create order:", error);
       setErrors({ general: 'Terjadi kesalahan saat memproses pesanan' });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const calculateEstimatedDelivery = () => {
-    const now = new Date();
-    const timeSlot = timeSlots.find(slot => slot.id === selectedTimeSlot);
-    
-    switch (selectedTimeSlot) {
-      case 'asap':
-        return new Date(now.getTime() + 45 * 60000); // 45 minutes
-      case '1hour':
-        return new Date(now.getTime() + 60 * 60000); // 1 hour
-      case '2hour':
-        return new Date(now.getTime() + 120 * 60000); // 2 hours
-      case 'evening':
-        const evening = new Date(now);
-        evening.setHours(17, 0, 0, 0);
-        return evening;
-      case 'tomorrow':
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(9, 0, 0, 0);
-        return tomorrow;
-      default:
-        return new Date(now.getTime() + 45 * 60000);
-    }
-  };
+  // const calculateEstimatedDelivery = () => {
+  //   const now = new Date();
+  //   const timeSlot = timeSlots.find(slot => slot.id === selectedTimeSlot);
+
+  //   switch (selectedTimeSlot) {
+  //     case 'asap':
+  //       return new Date(now.getTime() + 45 * 60000); // 45 minutes
+  //     case '1hour':
+  //       return new Date(now.getTime() + 60 * 60000); // 1 hour
+  //     case '2hour':
+  //       return new Date(now.getTime() + 120 * 60000); // 2 hours
+  //     case 'evening':
+  //       const evening = new Date(now);
+  //       evening.setHours(17, 0, 0, 0);
+  //       return evening;
+  //     case 'tomorrow':
+  //       const tomorrow = new Date(now);
+  //       tomorrow.setDate(tomorrow.getDate() + 1);
+  //       tomorrow.setHours(9, 0, 0, 0);
+  //       return tomorrow;
+  //     default:
+  //       return new Date(now.getTime() + 45 * 60000);
+  //   }
+  // };
 
   const formatPrice = (price) => {
+    if (typeof price !== 'number') return 'Rp 0';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -207,11 +232,26 @@ const CheckoutPage = () => {
     }).format(price);
   };
 
-  if (!orderData) {
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    // Ini mungkin untuk order.estimatedDelivery. Konversi ke Date object.
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // Fallback jika tanggal tidak valid
+    return date.toLocaleString('id-ID', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (!orderDataState) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <p>Memuat data pesanan...</p>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Clock10 className="h-12 w-12 text-primary animate-spin" />
+          <p className="ml-4 text-muted-foreground">Memuat data pesanan...</p>
         </div>
       </div>
     );
@@ -221,19 +261,22 @@ const CheckoutPage = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
+        <div className="mb-4">
+          <Button
+            variant="ghost"
             onClick={() => navigate('/cart')}
+            className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Kembali ke Keranjang
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Checkout</h1>
-            <p className="text-muted-foreground">
-              Lengkapi informasi pengiriman dan pembayaran
-            </p>
+          <div className=''>
+            <div>
+              <h1 className="text-3xl font-bold">Checkout</h1>
+              <p className="text-muted-foreground">
+                Lengkapi informasi pengiriman dan pembayaran
+              </p>
+            </div>
           </div>
         </div>
 
@@ -275,7 +318,7 @@ const CheckoutPage = () => {
                         </div>
                       </Label>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2 p-4 border rounded-lg">
                       <RadioGroupItem value="pickup" id="pickup" />
                       <Label htmlFor="pickup" className="flex-1 cursor-pointer">
@@ -317,19 +360,19 @@ const CheckoutPage = () => {
                         <p className="text-sm text-red-500">{errors.name}</p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="phone">Nomor Telepon *</Label>
                       <Input
                         id="phone"
-                        name="phone"
-                        value={deliveryInfo.phone}
+                        name="phone_number"
+                        value={deliveryInfo.phone_number}
                         onChange={handleInputChange}
                         placeholder="08xxxxxxxxxx"
-                        className={errors.phone ? 'border-red-500' : ''}
+                        className={errors.phone_number ? 'border-red-500' : ''}
                       />
                       {errors.phone && (
-                        <p className="text-sm text-red-500">{errors.phone}</p>
+                        <p className="text-sm text-red-500">{errors.phone_number}</p>
                       )}
                     </div>
                   </div>
@@ -378,13 +421,13 @@ const CheckoutPage = () => {
                   <RadioGroup value={selectedTimeSlot} onValueChange={setSelectedTimeSlot}>
                     {timeSlots.map((slot) => (
                       <div key={slot.id} className="flex items-center space-x-2">
-                        <RadioGroupItem 
-                          value={slot.id} 
+                        <RadioGroupItem
+                          value={slot.id}
                           id={slot.id}
                           disabled={!slot.available}
                         />
-                        <Label 
-                          htmlFor={slot.id} 
+                        <Label
+                          htmlFor={slot.id}
                           className={`cursor-pointer ${!slot.available ? 'text-muted-foreground' : ''}`}
                         >
                           {slot.label}
@@ -462,10 +505,14 @@ const CheckoutPage = () => {
                 <CardContent className="space-y-4">
                   {/* Order Items */}
                   <div className="space-y-3">
-                    {orderData.cartItems.map((item) => (
+                    {orderDataState.cartItems.map((item) => (
                       <div key={item.id} className="flex gap-3">
                         <div className="w-12 h-12 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                          <Coffee className="h-6 w-6 text-muted-foreground" />
+                          {item.coffee?.image_url ? (
+                            <img src={item.coffee.image_url} alt={item.coffee.name} className="w-full h-full object-cover rounded" />
+                          ) : (
+                            <Coffee className="h-6 w-6 text-muted-foreground" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{item.coffee.name}</p>
@@ -495,38 +542,38 @@ const CheckoutPage = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal</span>
-                      <span>{formatPrice(orderData.subtotal)}</span>
+                      <span>{formatPrice(orderDataState.subtotal)}</span>
                     </div>
-                    
-                    {orderData.discount > 0 && (
+
+                    {orderDataState.discount > 0 && (
                       <div className="flex justify-between text-sm text-green-600">
                         <span>Diskon</span>
-                        <span>-{formatPrice(orderData.discount)}</span>
+                        <span>-{formatPrice(orderDataState.discount)}</span>
                       </div>
                     )}
-                    
+
                     <div className="flex justify-between text-sm">
                       <span>Ongkos Kirim</span>
                       <span>
-                        {orderData.shipping === 0 ? (
+                        {orderDataState.shipping === 0 ? (
                           <span className="text-green-600">Gratis</span>
                         ) : (
-                          formatPrice(orderData.shipping)
+                          formatPrice(orderDataState.shipping)
                         )}
                       </span>
                     </div>
-                    
+
                     <Separator />
-                    
+
                     <div className="flex justify-between font-bold">
                       <span>Total</span>
-                      <span className="text-primary">{formatPrice(orderData.total)}</span>
+                      <span className="text-primary">{formatPrice(orderDataState.total)}</span>
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
+                  <Button
+                    type="submit"
+                    className="w-full"
                     size="lg"
                     disabled={isProcessing}
                   >
