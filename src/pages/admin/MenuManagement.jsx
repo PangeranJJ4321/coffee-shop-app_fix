@@ -53,9 +53,9 @@ const MenuManagement = () => {
 
   // Memoize constants to prevent re-renders
   const categories = useMemo(() => [
-    { value: 'Coffee', label: 'Coffee', color: 'bg-brown-100 text-brown-800' },
-    { value: 'Iced Coffee', label: 'Iced Drinks', color: 'bg-blue-100 text-blue-800' },
-    { value: 'Non-Coffee', label: 'Non Coffee', color: 'bg-green-100 text-green-800' }
+    { value: 'COFFEE', label: 'Coffee', color: 'bg-brown-100 text-brown-800' },
+    { value: 'ICED', label: 'Iced Drinks', color: 'bg-blue-100 text-blue-800' },
+    { value: 'NON_COFFEE', label: 'Non Coffee', color: 'bg-green-100 text-green-800' }
   ], []);
 
   const statuses = useMemo(() => [

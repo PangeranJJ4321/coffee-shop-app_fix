@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react'; // Import useMemo
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,13 +12,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  ShoppingCart, 
-  Search, 
-  Filter, 
-  Eye, 
-  Edit, 
-  Trash2, 
+import {
+  ShoppingCart,
+  Search,
+  Filter,
+  Eye,
+  Edit,
+  Trash2,
   MoreHorizontal,
   Package,
   Clock,
@@ -43,430 +43,206 @@ import {
 } from 'lucide-react';
 
 const OrderManagement = () => {
-  const { user: currentUser } = useAuth();
-  
+  const { user: currentUser, api } = useAuth();
+
   const [orders, setOrders] = useState([]);
-  const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null); // Ini akan menyimpan OrderWithItemsResponse
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isUpdateStatusDialogOpen, setIsUpdateStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock order data
-  const mockOrders = [
-    {
-      id: 'ORD-001',
-      customerName: 'John Doe',
-      customerEmail: 'john@example.com',
-      customerPhone: '081234567890',
-      status: 'COMPLETED',
-      paymentStatus: 'PAID',
-      paymentMethod: 'QRIS',
-      total: 85000,
-      subtotal: 75000,
-      shippingCost: 10000,
-      discount: 0,
-      promoCode: null,
-      deliveryMethod: 'DELIVERY',
-      deliveryAddress: 'Jl. Sudirman No. 123, Jakarta Pusat',
-      deliveryTime: '2024-01-20T15:00:00Z',
-      notes: 'Tolong jangan terlalu manis',
-      createdAt: '2024-01-20T14:30:00Z',
-      updatedAt: '2024-01-20T15:30:00Z',
-      items: [
-        {
-          id: 1,
-          name: 'Espresso Premium',
-          price: 25000,
-          quantity: 2,
-          variants: [
-            { name: 'Size', option: 'Medium', priceModifier: 5000 },
-            { name: 'Sugar Level', option: 'Less Sugar', priceModifier: 0 }
-          ]
-        },
-        {
-          id: 2,
-          name: 'Cappuccino Special',
-          price: 32000,
-          quantity: 1,
-          variants: [
-            { name: 'Size', option: 'Large', priceModifier: 10000 },
-            { name: 'Milk Type', option: 'Oat Milk', priceModifier: 8000 }
-          ]
-        }
-      ],
-      timeline: [
-        { status: 'PENDING', timestamp: '2024-01-20T14:30:00Z', note: 'Pesanan dibuat' },
-        { status: 'PAID', timestamp: '2024-01-20T14:35:00Z', note: 'Pembayaran berhasil' },
-        { status: 'PREPARING', timestamp: '2024-01-20T14:40:00Z', note: 'Pesanan sedang diproses' },
-        { status: 'READY', timestamp: '2024-01-20T15:10:00Z', note: 'Pesanan siap dikirim' },
-        { status: 'DELIVERED', timestamp: '2024-01-20T15:30:00Z', note: 'Pesanan telah dikirim' },
-        { status: 'COMPLETED', timestamp: '2024-01-20T15:45:00Z', note: 'Pesanan selesai' }
-      ]
-    },
-    {
-      id: 'ORD-002',
-      customerName: 'Sarah Wilson',
-      customerEmail: 'sarah@example.com',
-      customerPhone: '081234567891',
-      status: 'PREPARING',
-      paymentStatus: 'PAID',
-      paymentMethod: 'QRIS',
-      total: 65000,
-      subtotal: 55000,
-      shippingCost: 10000,
-      discount: 0,
-      promoCode: null,
-      deliveryMethod: 'PICKUP',
-      deliveryAddress: null,
-      deliveryTime: '2024-01-20T16:00:00Z',
-      notes: null,
-      createdAt: '2024-01-20T14:15:00Z',
-      updatedAt: '2024-01-20T14:45:00Z',
-      items: [
-        {
-          id: 3,
-          name: 'Latte Art',
-          price: 35000,
-          quantity: 1,
-          variants: [
-            { name: 'Size', option: 'Large', priceModifier: 10000 },
-            { name: 'Sugar Level', option: 'Normal Sugar', priceModifier: 0 }
-          ]
-        },
-        {
-          id: 4,
-          name: 'Americano',
-          price: 22000,
-          quantity: 1,
-          variants: [
-            { name: 'Size', option: 'Medium', priceModifier: 5000 }
-          ]
-        }
-      ],
-      timeline: [
-        { status: 'PENDING', timestamp: '2024-01-20T14:15:00Z', note: 'Pesanan dibuat' },
-        { status: 'PAID', timestamp: '2024-01-20T14:20:00Z', note: 'Pembayaran berhasil' },
-        { status: 'PREPARING', timestamp: '2024-01-20T14:25:00Z', note: 'Pesanan sedang diproses' }
-      ]
-    },
-    {
-      id: 'ORD-003',
-      customerName: 'Mike Johnson',
-      customerEmail: 'mike@example.com',
-      customerPhone: '081234567892',
-      status: 'PENDING',
-      paymentStatus: 'PENDING',
-      paymentMethod: 'QRIS',
-      total: 32000,
-      subtotal: 32000,
-      shippingCost: 0,
-      discount: 5000,
-      promoCode: 'WELCOME10',
-      deliveryMethod: 'PICKUP',
-      deliveryAddress: null,
-      deliveryTime: '2024-01-20T17:00:00Z',
-      notes: 'Pickup jam 5 sore',
-      createdAt: '2024-01-20T14:00:00Z',
-      updatedAt: '2024-01-20T14:00:00Z',
-      items: [
-        {
-          id: 5,
-          name: 'Iced Coffee Delight',
-          price: 28000,
-          quantity: 1,
-          variants: [
-            { name: 'Size', option: 'Large', priceModifier: 10000 },
-            { name: 'Sugar Level', option: 'Extra Sugar', priceModifier: 0 }
-          ]
-        }
-      ],
-      timeline: [
-        { status: 'PENDING', timestamp: '2024-01-20T14:00:00Z', note: 'Pesanan dibuat, menunggu pembayaran' }
-      ]
-    },
-    {
-      id: 'ORD-004',
-      customerName: 'Emma Davis',
-      customerEmail: 'emma@example.com',
-      customerPhone: '081234567893',
-      status: 'DELIVERED',
-      paymentStatus: 'PAID',
-      paymentMethod: 'QRIS',
-      total: 120000,
-      subtotal: 110000,
-      shippingCost: 10000,
-      discount: 0,
-      promoCode: null,
-      deliveryMethod: 'DELIVERY',
-      deliveryAddress: 'Jl. Thamrin No. 456, Jakarta Pusat',
-      deliveryTime: '2024-01-20T14:30:00Z',
-      notes: null,
-      createdAt: '2024-01-20T13:45:00Z',
-      updatedAt: '2024-01-20T14:30:00Z',
-      items: [
-        {
-          id: 6,
-          name: 'Cappuccino Special',
-          price: 32000,
-          quantity: 2,
-          variants: [
-            { name: 'Size', option: 'Large', priceModifier: 10000 },
-            { name: 'Milk Type', option: 'Almond Milk', priceModifier: 10000 }
-          ]
-        },
-        {
-          id: 7,
-          name: 'Hot Chocolate',
-          price: 30000,
-          quantity: 2,
-          variants: [
-            { name: 'Size', option: 'Medium', priceModifier: 5000 }
-          ]
-        }
-      ],
-      timeline: [
-        { status: 'PENDING', timestamp: '2024-01-20T13:45:00Z', note: 'Pesanan dibuat' },
-        { status: 'PAID', timestamp: '2024-01-20T13:50:00Z', note: 'Pembayaran berhasil' },
-        { status: 'PREPARING', timestamp: '2024-01-20T13:55:00Z', note: 'Pesanan sedang diproses' },
-        { status: 'READY', timestamp: '2024-01-20T14:20:00Z', note: 'Pesanan siap dikirim' },
-        { status: 'DELIVERED', timestamp: '2024-01-20T14:30:00Z', note: 'Pesanan telah dikirim' }
-      ]
-    },
-    {
-      id: 'ORD-005',
-      customerName: 'Alex Brown',
-      customerEmail: 'alex@example.com',
-      customerPhone: '081234567894',
-      status: 'CANCELLED',
-      paymentStatus: 'REFUNDED',
-      paymentMethod: 'QRIS',
-      total: 58000,
-      subtotal: 48000,
-      shippingCost: 10000,
-      discount: 0,
-      promoCode: null,
-      deliveryMethod: 'DELIVERY',
-      deliveryAddress: 'Jl. Gatot Subroto No. 789, Jakarta Selatan',
-      deliveryTime: '2024-01-20T15:00:00Z',
-      notes: 'Dibatalkan karena stok habis',
-      createdAt: '2024-01-20T13:30:00Z',
-      updatedAt: '2024-01-20T13:45:00Z',
-      items: [
-        {
-          id: 8,
-          name: 'Green Tea Latte',
-          price: 33000,
-          quantity: 1,
-          variants: [
-            { name: 'Size', option: 'Large', priceModifier: 10000 },
-            { name: 'Milk Type', option: 'Soy Milk', priceModifier: 6000 }
-          ]
-        },
-        {
-          id: 9,
-          name: 'Americano',
-          price: 22000,
-          quantity: 1,
-          variants: [
-            { name: 'Size', option: 'Small', priceModifier: 0 }
-          ]
-        }
-      ],
-      timeline: [
-        { status: 'PENDING', timestamp: '2024-01-20T13:30:00Z', note: 'Pesanan dibuat' },
-        { status: 'PAID', timestamp: '2024-01-20T13:35:00Z', note: 'Pembayaran berhasil' },
-        { status: 'CANCELLED', timestamp: '2024-01-20T13:45:00Z', note: 'Pesanan dibatalkan - stok habis' },
-        { status: 'REFUNDED', timestamp: '2024-01-20T13:50:00Z', note: 'Pembayaran dikembalikan' }
-      ]
-    }
-  ];
-
-  const orderStatuses = [
-    { value: 'PENDING', label: 'Menunggu Pembayaran', color: 'bg-blue-100 text-blue-800' },
-    { value: 'PAID', label: 'Dibayar', color: 'bg-green-100 text-green-800' },
-    { value: 'PREPARING', label: 'Diproses', color: 'bg-yellow-100 text-yellow-800' },
-    { value: 'READY', label: 'Siap', color: 'bg-purple-100 text-purple-800' },
-    { value: 'DELIVERED', label: 'Dikirim', color: 'bg-indigo-100 text-indigo-800' },
+  const orderStatuses = useMemo(() => [
+    { value: 'PENDING', label: 'Menunggu Pembayaran', color: 'bg-yellow-100 text-yellow-800' },
+    { value: 'PROCESSING', label: 'Diproses Pembayaran', color: 'bg-orange-100 text-orange-800' },
+    { value: 'CONFIRMED', label: 'Dikonfirmasi', color: 'bg-indigo-100 text-indigo-800' },
+    { value: 'PREPARING', label: 'Disiapkan', color: 'bg-blue-100 text-blue-800' },
+    { value: 'READY', label: 'Siap Ambil/Kirim', color: 'bg-purple-100 text-purple-800' },
+    { value: 'DELIVERED', label: 'Dikirim/Diambil', color: 'bg-teal-100 text-teal-800' },
     { value: 'COMPLETED', label: 'Selesai', color: 'bg-green-100 text-green-800' },
-    { value: 'CANCELLED', label: 'Dibatalkan', color: 'bg-red-100 text-red-800' }
-  ];
+    { value: 'CANCELLED', label: 'Dibatalkan', color: 'bg-red-100 text-red-800' },
+  ], []);
 
-  const paymentStatuses = [
-    { value: 'PENDING', label: 'Menunggu', color: 'bg-blue-100 text-blue-800' },
-    { value: 'PAID', label: 'Dibayar', color: 'bg-green-100 text-green-800' },
-    { value: 'FAILED', label: 'Gagal', color: 'bg-red-100 text-red-800' },
-    { value: 'REFUNDED', label: 'Dikembalikan', color: 'bg-gray-100 text-gray-800' }
-  ];
+  const paymentStatuses = useMemo(() => [
+    { value: 'Paid', label: 'Dibayar', color: 'bg-green-100 text-green-800' },
+    { value: 'Unpaid', label: 'Belum Dibayar', color: 'bg-red-100 text-red-800' }
+  ], []);
 
-  useEffect(() => {
-    // Simulate API call
-    setIsLoading(true);
-    setTimeout(() => {
-      setOrders(mockOrders);
-      setFilteredOrders(mockOrders);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
 
-  useEffect(() => {
+  const filteredOrders = useMemo(() => {
     let filtered = [...orders];
 
-    // Filter by search term
-    if (searchTerm) {
+    if (searchTerm && searchTerm.trim() !== "") {
       filtered = filtered.filter(order =>
-        order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.items.some(item => 
-          item.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        (order.order_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order.user_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order.user_email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order.items_summary || "").toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filter by status
     if (statusFilter !== 'all') {
       filtered = filtered.filter(order => order.status === statusFilter);
     }
 
-    // Filter by payment status
     if (paymentFilter !== 'all') {
-      filtered = filtered.filter(order => order.paymentStatus === paymentFilter);
+      filtered = filtered.filter(order => order.payment_status === paymentFilter);
     }
 
-    // Sort orders
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.created_at) - new Date(a.created_at);
         case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return new Date(a.created_at) - new Date(b.created_at);
         case 'total_high':
-          return b.total - a.total;
+          return b.total_price - a.total_price;
         case 'total_low':
-          return a.total - b.total;
+          return a.total_price - b.total_price;
         case 'customer':
-          return a.customerName.localeCompare(b.customerName);
+          return (a.user_name || "").localeCompare(b.user_name || "");
         default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.created_at) - new Date(a.created_at);
       }
     });
 
-    setFilteredOrders(filtered);
+    return filtered;
   }, [orders, searchTerm, statusFilter, paymentFilter, sortBy]);
 
-  const handleUpdateStatus = async () => {
+
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const queryParams = new URLSearchParams();
+      if (statusFilter !== 'all') {
+        queryParams.append('status', statusFilter);
+      }
+
+      const response = await api.get(`/admin/order-management/orders?${queryParams.toString()}`);
+      setOrders(response.data);
+      console.log("Orders Fetched:", response.data);
+    } catch (error) {
+      console.error("Failed to fetch orders:", error.response?.data || error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, statusFilter]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+
+  const handleUpdateStatus = useCallback(async () => {
     if (!selectedOrder || !newStatus) return;
 
     setIsSubmitting(true);
-
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setOrders(prev => prev.map(order =>
-        order.id === selectedOrder.id
-          ? { 
-              ...order, 
-              status: newStatus,
-              updatedAt: new Date().toISOString(),
-              timeline: [
-                ...order.timeline,
-                {
-                  status: newStatus,
-                  timestamp: new Date().toISOString(),
-                  note: statusNote || `Status diubah ke ${getStatusLabel(newStatus)}`
-                }
-              ]
-            }
-          : order
-      ));
-
+      const response = await api.put(
+        `/admin/order-management/orders/${selectedOrder.id}/status`,
+        { status: newStatus, notes: statusNote }
+      );
+      console.log("Order status updated:", response.data);
+      fetchOrders();
       setIsUpdateStatusDialogOpen(false);
       setSelectedOrder(null);
       setNewStatus('');
       setStatusNote('');
-      
     } catch (error) {
-      alert('Gagal mengupdate status pesanan');
+      console.error("Failed to update order status:", error.response?.data || error.message);
+      alert('Gagal mengupdate status pesanan: ' + (error.response?.data?.detail || error.message));
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [api, selectedOrder, newStatus, statusNote, fetchOrders]);
 
-  const openDetailDialog = (order) => {
-    setSelectedOrder(order);
-    setIsDetailDialogOpen(true);
-  };
 
-  const openUpdateStatusDialog = (order) => {
+  const openDetailDialog = useCallback(async (order) => {
+    setIsLoading(true);
+    try {
+        const response = await api.get(`/admin/order-management/orders/${order.id}`);
+        setSelectedOrder(response.data);
+        setIsDetailDialogOpen(true);
+    } catch (error) {
+        console.error("Failed to fetch order details for modal:", error.response?.data || error.message);
+        alert("Gagal memuat detail pesanan: " + (error.response?.data?.detail || error.message));
+    } finally {
+        setIsLoading(false);
+    }
+  }, [api]);
+
+
+  const openUpdateStatusDialog = useCallback((order) => {
     setSelectedOrder(order);
     setNewStatus(order.status);
     setStatusNote('');
     setIsUpdateStatusDialogOpen(true);
-  };
+  }, []);
 
-  const formatPrice = (price) => {
+  const formatPrice = useCallback((price) => {
+    if (typeof price !== 'number') return 'Rp 0';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(price);
-  };
+  }, []);
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = useCallback((dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleString('id-ID', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return dateString;
+    }
+  }, []);
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = useCallback((status) => {
     const statusConfig = orderStatuses.find(s => s.value === status);
     if (!statusConfig) return null;
-    
+
     return (
       <Badge className={`${statusConfig.color} border-0`}>
         {statusConfig.label}
       </Badge>
     );
-  };
+  }, [orderStatuses]);
 
-  const getPaymentStatusBadge = (status) => {
+  const getPaymentStatusBadge = useCallback((status) => {
     const statusConfig = paymentStatuses.find(s => s.value === status);
     if (!statusConfig) return null;
-    
     return (
       <Badge className={`${statusConfig.color} border-0`}>
         {statusConfig.label}
       </Badge>
     );
-  };
+  }, [paymentStatuses]);
 
-  const getStatusLabel = (status) => {
-    const statusConfig = orderStatuses.find(s => s.value === status);
-    return statusConfig ? statusConfig.label : status;
-  };
 
-  const getDeliveryMethodBadge = (method) => {
+  const getDeliveryMethodBadge = useCallback((method) => {
     const config = {
-      'DELIVERY': { label: 'Delivery', color: 'bg-blue-100 text-blue-800', icon: Truck },
-      'PICKUP': { label: 'Pickup', color: 'bg-green-100 text-green-800', icon: Package }
+      'delivery': { label: 'Diantar', color: 'bg-blue-100 text-blue-800', icon: Truck },
+      'pickup': { label: 'Ambil di Toko', color: 'bg-green-100 text-green-800', icon: Package }
     };
-    
+
     const methodConfig = config[method];
     if (!methodConfig) return null;
-    
+
     const Icon = methodConfig.icon;
     return (
       <Badge className={`${methodConfig.color} border-0`}>
@@ -474,7 +250,203 @@ const OrderManagement = () => {
         {methodConfig.label}
       </Badge>
     );
-  };
+  }, []);
+
+
+  const OrderDetailModal = React.memo(({ order, onClose, onUpdateStatus, getStatusBadge, formatPrice, formatDate, getDeliveryMethodBadge, getPaymentStatusBadge }) => {
+    const { api } = useAuth(); // Perlu akses api di sini
+    const [history, setHistory] = useState([]);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+
+    const fetchStatusHistory = useCallback(async () => {
+      setIsHistoryLoading(true);
+      try {
+        const response = await api.get(`/admin/order-management/orders/${order.id}/status-history`);
+        setHistory(response.data);
+      } catch (err) {
+        console.error("Failed to fetch order history:", err.response?.data || err.message);
+      } finally {
+        setIsHistoryLoading(false);
+      }
+    }, [api, order.id]);
+
+    useEffect(() => {
+      if (order?.id) {
+        fetchStatusHistory();
+      }
+    }, [order?.id, fetchStatusHistory]);
+
+
+    return (
+      <div className="space-y-6">
+        {/* Customer Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Informasi Pelanggan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium">Nama</Label>
+              <p>{order.user_name}</p> {/* Mengakses dari order.user_name */}
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Email</Label>
+              <p>{order.user_email}</p> {/* Mengakses dari order.user_email */}
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Telepon</Label>
+              <p>{order.recipient_phone_number || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Metode Pengiriman</Label>
+              <div className="mt-1">
+                {getDeliveryMethodBadge(order.delivery_method)}
+              </div>
+            </div>
+            {order.delivery_address && (
+              <div className="md:col-span-2">
+                <Label className="text-sm font-medium">Alamat Pengiriman</Label>
+                <p>{order.delivery_address}</p>
+              </div>
+            )}
+            {order.order_notes && (
+              <div className="md:col-span-2">
+                <Label className="text-sm font-medium">Catatan</Label>
+                <p>{order.order_notes}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order Items */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Coffee className="h-5 w-5" />
+              Item Pesanan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {order.order_items.map((item, index) => (
+                <div key={item.id || index} className="flex justify-between items-start p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium">{item.coffee.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Qty: {item.quantity} × {formatPrice(item.coffee.price)}
+                    </p>
+                    {item.variants && item.variants.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {item.variants.map((variant, vIndex) => (
+                          <div key={variant.id || vIndex} className="text-sm">
+                            <span className="font-medium">{variant.name}:</span> {variant.name}
+                            {variant.additional_price > 0 && (
+                              <span className="text-green-600 ml-1">
+                                (+{formatPrice(variant.additional_price)})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold">
+                      {formatPrice(item.subtotal)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Separator className="my-4" />
+
+            {/* Order Summary */}
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{formatPrice(order.total_price)}</span>
+              </div>
+
+              {order.discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Diskon {order.promoCode && `(${order.promoCode})`}</span>
+                  <span>-{formatPrice(order.discount)}</span>
+                </div>
+              )}
+              {order.shippingCost > 0 && (
+                <div className="flex justify-between">
+                  <span>Ongkos Kirim</span>
+                  <span>{formatPrice(order.shippingCost)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between font-bold text-lg">
+                <span>Total</span>
+                <span>{formatPrice(order.total_price)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Status Pembayaran</span>
+                <span>{getPaymentStatusBadge(order.payment_status)}</span> {/* Mengakses dari order.payment_status */}
+              </div>
+              {order.paid_at && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Waktu Pembayaran</span>
+                    <span>{formatDate(order.paid_at)}</span>
+                  </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Order Timeline */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Timeline Pesanan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isHistoryLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Memuat riwayat status...</span>
+              </div>
+            ) : history.length === 0 ? (
+              <p className="text-muted-foreground text-center">Tidak ada riwayat status.</p>
+            ) : (
+              <div className="space-y-4">
+                {history.map((event, index) => (
+                  <div key={event.id || index} className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                      <div className="w-3 h-3 bg-white rounded-full" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(event.new_status)}
+                        <span className="text-sm text-muted-foreground">
+                          {formatDate(event.changed_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-1">
+                        {event.notes || `Status diubah menjadi ${event.new_status.toLowerCase().replace('_', ' ')}.`}
+                        {event.changed_by_user_name && ` Oleh: ${event.changed_by_user_name}`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  });
+
 
   if (isLoading) {
     return (
@@ -505,7 +477,7 @@ const OrderManagement = () => {
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={fetchOrders}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
@@ -536,7 +508,7 @@ const OrderManagement = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {orders.filter(o => ['PENDING', 'PAID', 'PREPARING'].includes(o.status)).length}
+                    {orders.filter(o => ['PENDING', 'PROCESSING', 'CONFIRMED', 'PREPARING', 'READY'].includes(o.status)).length}
                   </p>
                   <p className="text-sm text-muted-foreground">Sedang Diproses</p>
                 </div>
@@ -568,7 +540,7 @@ const OrderManagement = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {formatPrice(orders.reduce((total, order) => total + order.total, 0))}
+                    {formatPrice(orders.reduce((total, order) => total + order.total_price, 0))}
                   </p>
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
                 </div>
@@ -701,53 +673,52 @@ const OrderManagement = () => {
                       <TableRow key={order.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{order.id}</p>
-                            {getDeliveryMethodBadge(order.deliveryMethod)}
+                            <p className="font-medium">{order.order_id}</p>
+                            {getDeliveryMethodBadge(order.delivery_method)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{order.customerName}</p>
-                            <p className="text-sm text-muted-foreground">{order.customerEmail}</p>
+                            <p className="font-medium">{order.user_name}</p>
+                            <p className="text-sm text-muted-foreground">{order.user_email}</p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{order.items.length} item</p>
+                            <p className="font-medium">{order.items_count} item</p>
                             <p className="text-sm text-muted-foreground">
-                              {order.items.slice(0, 2).map(item => item.name).join(', ')}
-                              {order.items.length > 2 && ` +${order.items.length - 2} lainnya`}
+                              {order.items_summary}
                             </p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-bold">{formatPrice(order.total)}</p>
-                            {order.discount > 0 && (
+                            <p className="font-bold">{formatPrice(order.total_price)}</p>
+                            {/* {order.discount > 0 && (
                               <p className="text-sm text-green-600">
                                 Diskon: -{formatPrice(order.discount)}
                               </p>
-                            )}
+                            )} */}
                           </div>
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(order.status)}
                         </TableCell>
                         <TableCell>
-                          {getPaymentStatusBadge(order.paymentStatus)}
+                          {getPaymentStatusBadge(order.payment_status)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
                             <CreditCard className="h-3 w-3 mr-1" />
-                            {order.paymentMethod}
+                            {order.payment_status === "Paid" ? "QRIS" : "N/A"}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            <p>{formatDate(order.createdAt)}</p>
-                            {order.deliveryTime && (
+                            <p>{formatDate(order.ordered_at)}</p>
+                            {order.paid_at && (
                               <p className="text-muted-foreground">
-                                Target: {formatDate(order.deliveryTime)}
+                                Bayar: {formatDate(order.paid_at)}
                               </p>
                             )}
                           </div>
@@ -790,158 +761,23 @@ const OrderManagement = () => {
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Detail Pesanan {selectedOrder?.id}</DialogTitle>
+              <DialogTitle>Detail Pesanan {selectedOrder?.order_id}</DialogTitle>
               <DialogDescription>
                 Informasi lengkap pesanan pelanggan
               </DialogDescription>
             </DialogHeader>
-            
+
             {selectedOrder && (
-              <div className="space-y-6">
-                {/* Customer Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Informasi Pelanggan
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">Nama</Label>
-                      <p>{selectedOrder.customerName}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Email</Label>
-                      <p>{selectedOrder.customerEmail}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Telepon</Label>
-                      <p>{selectedOrder.customerPhone}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Metode Pengiriman</Label>
-                      <div className="mt-1">
-                        {getDeliveryMethodBadge(selectedOrder.deliveryMethod)}
-                      </div>
-                    </div>
-                    {selectedOrder.deliveryAddress && (
-                      <div className="md:col-span-2">
-                        <Label className="text-sm font-medium">Alamat Pengiriman</Label>
-                        <p>{selectedOrder.deliveryAddress}</p>
-                      </div>
-                    )}
-                    {selectedOrder.notes && (
-                      <div className="md:col-span-2">
-                        <Label className="text-sm font-medium">Catatan</Label>
-                        <p>{selectedOrder.notes}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Order Items */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Coffee className="h-5 w-5" />
-                      Item Pesanan
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {selectedOrder.items.map((item, index) => (
-                        <div key={index} className="flex justify-between items-start p-4 border rounded-lg">
-                          <div className="flex-1">
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Qty: {item.quantity} × {formatPrice(item.price)}
-                            </p>
-                            {item.variants && item.variants.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {item.variants.map((variant, vIndex) => (
-                                  <div key={vIndex} className="text-sm">
-                                    <span className="font-medium">{variant.name}:</span> {variant.option}
-                                    {variant.priceModifier > 0 && (
-                                      <span className="text-green-600 ml-1">
-                                        (+{formatPrice(variant.priceModifier)})
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold">
-                              {formatPrice(item.price * item.quantity + 
-                                (item.variants?.reduce((sum, v) => sum + v.priceModifier, 0) || 0) * item.quantity
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <Separator className="my-4" />
-                    
-                    {/* Order Summary */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span>{formatPrice(selectedOrder.subtotal)}</span>
-                      </div>
-                      {selectedOrder.discount > 0 && (
-                        <div className="flex justify-between text-green-600">
-                          <span>Diskon {selectedOrder.promoCode && `(${selectedOrder.promoCode})`}</span>
-                          <span>-{formatPrice(selectedOrder.discount)}</span>
-                        </div>
-                      )}
-                      {selectedOrder.shippingCost > 0 && (
-                        <div className="flex justify-between">
-                          <span>Ongkos Kirim</span>
-                          <span>{formatPrice(selectedOrder.shippingCost)}</span>
-                        </div>
-                      )}
-                      <Separator />
-                      <div className="flex justify-between font-bold text-lg">
-                        <span>Total</span>
-                        <span>{formatPrice(selectedOrder.total)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Order Timeline */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Clock className="h-5 w-5" />
-                      Timeline Pesanan
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {selectedOrder.timeline.map((event, index) => (
-                        <div key={index} className="flex items-start gap-4">
-                          <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                            <div className="w-3 h-3 bg-white rounded-full" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              {getStatusBadge(event.status)}
-                              <span className="text-sm text-muted-foreground">
-                                {formatDate(event.timestamp)}
-                              </span>
-                            </div>
-                            <p className="text-sm mt-1">{event.note}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <OrderDetailModal
+                order={selectedOrder}
+                onClose={() => setIsDetailDialogOpen(false)}
+                onUpdateStatus={openUpdateStatusDialog}
+                getStatusBadge={getStatusBadge}
+                formatPrice={formatPrice}
+                formatDate={formatDate}
+                getDeliveryMethodBadge={getDeliveryMethodBadge}
+                getPaymentStatusBadge={getPaymentStatusBadge}
+              />
             )}
           </DialogContent>
         </Dialog>
@@ -952,10 +788,10 @@ const OrderManagement = () => {
             <DialogHeader>
               <DialogTitle>Update Status Pesanan</DialogTitle>
               <DialogDescription>
-                Ubah status pesanan {selectedOrder?.id}
+                Ubah status pesanan {selectedOrder?.order_id}
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="status">Status Baru *</Label>
@@ -985,7 +821,7 @@ const OrderManagement = () => {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button 
+                <Button
                   onClick={handleUpdateStatus}
                   disabled={isSubmitting || !newStatus}
                   className="flex-1"
@@ -993,8 +829,8 @@ const OrderManagement = () => {
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Update Status
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setIsUpdateStatusDialogOpen(false)}
                   disabled={isSubmitting}
                 >
@@ -1010,4 +846,3 @@ const OrderManagement = () => {
 };
 
 export default OrderManagement;
-
