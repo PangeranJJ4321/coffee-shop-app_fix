@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,13 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Coffee, 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Coffee,
+  Search,
+  Filter,
+  Plus,
+  Edit,
+  Trash2,
   MoreHorizontal,
   Upload,
   Star,
@@ -30,16 +30,16 @@ import {
   AlertCircle,
   Loader2,
   Package,
-  Image as ImageIcon,
+  ImageIcon,
   Tag
 } from 'lucide-react';
 
 const MenuManagement = () => {
-  const { user: currentUser } = useAuth();
-  
+  const { api } = useAuth();
+
   const [menuItems, setMenuItems] = useState([]);
-  const [filteredMenuItems, setFilteredMenuItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isFeaturedFilterActive, setIsFeaturedFilterActive] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
@@ -49,176 +49,48 @@ const MenuManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [menuItemToDelete, setMenuItemToDelete] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    longDescription: '',
-    price: 0,
-    category: 'COFFEE',
-    status: 'ACTIVE',
-    featured: false,
-    image: '',
-    tags: [],
-    variants: []
-  });
-  const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newTag, setNewTag] = useState('');
 
-  // Mock menu data
-  const mockMenuItems = [
-    {
-      id: 1,
-      name: 'Espresso Premium',
-      description: 'Kopi espresso berkualitas tinggi dengan rasa yang kuat',
-      longDescription: 'Espresso premium dibuat dari biji kopi arabica pilihan yang dipanggang dengan sempurna. Menghasilkan rasa yang kuat, aroma yang harum, dan crema yang sempurna. Cocok untuk pecinta kopi sejati yang menginginkan pengalaman kopi autentik.',
-      price: 25000,
-      category: 'COFFEE',
-      status: 'ACTIVE',
-      featured: true,
-      image: '/images/espresso.jpg',
-      rating: 4.8,
-      totalReviews: 156,
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      tags: ['premium', 'strong', 'arabica'],
-      variants: [1, 2, 3] // Size, Sugar, Temperature
-    },
-    {
-      id: 2,
-      name: 'Cappuccino Special',
-      description: 'Cappuccino dengan foam susu yang sempurna',
-      longDescription: 'Cappuccino special adalah perpaduan sempurna antara espresso, steamed milk, dan milk foam. Dibuat dengan teknik barista profesional untuk menghasilkan tekstur yang creamy dan rasa yang seimbang. Disajikan dengan latte art yang indah.',
-      price: 32000,
-      category: 'COFFEE',
-      status: 'ACTIVE',
-      featured: true,
-      image: '/images/cappuccino.jpg',
-      rating: 4.7,
-      totalReviews: 203,
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      tags: ['creamy', 'milk', 'latte-art'],
-      variants: [1, 2, 3, 4] // Size, Sugar, Temperature, Milk
-    },
-    {
-      id: 3,
-      name: 'Latte Art',
-      description: 'Latte dengan seni foam yang menawan',
-      longDescription: 'Latte art adalah kombinasi espresso dan steamed milk yang disajikan dengan seni foam yang menawan. Setiap cangkir dibuat dengan penuh perhatian untuk menciptakan pola yang unik dan Instagram-worthy. Rasa yang smooth dan creamy.',
-      price: 35000,
-      category: 'COFFEE',
-      status: 'ACTIVE',
-      featured: false,
-      image: '/images/latte.jpg',
-      rating: 4.9,
-      totalReviews: 89,
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      tags: ['art', 'smooth', 'instagram'],
-      variants: [1, 2, 3, 4]
-    },
-    {
-      id: 4,
-      name: 'Americano',
-      description: 'Kopi hitam klasik dengan rasa yang bold',
-      longDescription: 'Americano adalah kopi hitam klasik yang dibuat dengan menambahkan air panas ke dalam shot espresso. Menghasilkan rasa yang bold namun tidak terlalu kuat, cocok untuk dinikmati sepanjang hari. Pilihan sempurna untuk yang menyukai kopi tanpa susu.',
-      price: 22000,
-      category: 'COFFEE',
-      status: 'ACTIVE',
-      featured: false,
-      image: '/images/americano.jpg',
-      rating: 4.5,
-      totalReviews: 134,
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      tags: ['black', 'bold', 'classic'],
-      variants: [1, 2, 3]
-    },
-    {
-      id: 5,
-      name: 'Iced Coffee Delight',
-      description: 'Kopi dingin yang menyegarkan',
-      longDescription: 'Iced coffee delight adalah minuman kopi dingin yang sempurna untuk cuaca panas. Dibuat dengan cold brew method untuk menghasilkan rasa yang smooth dan less acidic. Disajikan dengan es batu dan dapat ditambahkan susu sesuai selera.',
-      price: 28000,
-      category: 'ICED',
-      status: 'ACTIVE',
-      featured: true,
-      image: '/images/iced-coffee.jpg',
-      rating: 4.6,
-      totalReviews: 178,
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      tags: ['cold', 'refreshing', 'summer'],
-      variants: [1, 2, 4]
-    },
-    {
-      id: 6,
-      name: 'Hot Chocolate',
-      description: 'Cokelat panas yang creamy dan manis',
-      longDescription: 'Hot chocolate premium dibuat dari cokelat berkualitas tinggi yang dilelehkan dengan susu segar. Menghasilkan minuman yang creamy, manis, dan menghangatkan. Cocok untuk anak-anak dan dewasa yang tidak minum kopi.',
-      price: 30000,
-      category: 'NON_COFFEE',
-      status: 'ACTIVE',
-      featured: false,
-      image: '/images/hot-chocolate.jpg',
-      rating: 4.4,
-      totalReviews: 92,
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      tags: ['chocolate', 'sweet', 'kids-friendly'],
-      variants: [1, 2, 3]
-    },
-    {
-      id: 7,
-      name: 'Green Tea Latte',
-      description: 'Teh hijau dengan susu yang menenangkan',
-      longDescription: 'Green tea latte adalah perpaduan teh hijau matcha premium dengan steamed milk. Menghasilkan rasa yang unik, sedikit pahit dari matcha namun seimbang dengan creamy milk. Kaya akan antioksidan dan memberikan energi yang stabil.',
-      price: 33000,
-      category: 'NON_COFFEE',
-      status: 'INACTIVE',
-      featured: false,
-      image: '/images/green-tea-latte.jpg',
-      rating: 4.3,
-      totalReviews: 67,
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      tags: ['matcha', 'healthy', 'antioxidant'],
-      variants: [1, 2, 3, 4]
-    }
-  ];
+  // Memoize constants to prevent re-renders
+  const categories = useMemo(() => [
+    { value: 'Coffee', label: 'Coffee', color: 'bg-brown-100 text-brown-800' },
+    { value: 'Iced Coffee', label: 'Iced Drinks', color: 'bg-blue-100 text-blue-800' },
+    { value: 'Non-Coffee', label: 'Non Coffee', color: 'bg-green-100 text-green-800' }
+  ], []);
 
-  const categories = [
-    { value: 'COFFEE', label: 'Coffee', color: 'bg-brown-100 text-brown-800' },
-    { value: 'ICED', label: 'Iced Drinks', color: 'bg-blue-100 text-blue-800' },
-    { value: 'NON_COFFEE', label: 'Non Coffee', color: 'bg-green-100 text-green-800' }
-  ];
-
-  const statuses = [
+  const statuses = useMemo(() => [
     { value: 'ACTIVE', label: 'Aktif', color: 'bg-green-100 text-green-800' },
     { value: 'INACTIVE', label: 'Tidak Aktif', color: 'bg-red-100 text-red-800' }
-  ];
+  ], []);
 
-  // Mock variants for selection
-  const availableVariants = [
-    { id: 1, name: 'Size', type: 'SIZE' },
-    { id: 2, name: 'Sugar Level', type: 'SUGAR' },
-    { id: 3, name: 'Temperature', type: 'TEMPERATURE' },
-    { id: 4, name: 'Milk Type', type: 'MILK' },
-    { id: 5, name: 'Extra Shot', type: 'ADDON' }
-  ];
 
-  useEffect(() => {
-    // Simulate API call
+  // Fungsi untuk mengambil data menu dari API
+  const fetchMenuItems = useCallback(async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setMenuItems(mockMenuItems);
-      setFilteredMenuItems(mockMenuItems);
+    try {
+      const response = await api.get('/admin/menu-management/menu');
+      const mappedItems = response.data.map(item => ({
+        ...item,
+        status: item.is_available ? 'ACTIVE' : 'INACTIVE', // Konversi boolean ke string status
+        tags: item.tags || [],
+        rating: item.average_rating || 0, // Menggunakan average_rating dari backend
+        totalReviews: item.total_ratings || 0, // Menggunakan total_ratings dari backend
+      }));
+      setMenuItems(mappedItems);
+    } catch (error) {
+      console.error("Failed to fetch menu items:", error.response?.data || error.message);
+    } finally {
       setIsLoading(false);
-    }, 1000);
-  }, []);
+    }
+  }, [api]);
 
   useEffect(() => {
+    fetchMenuItems();
+  }, [fetchMenuItems]);
+
+
+  // Memoize filtered menu items to prevent unnecessary re-calculations
+  const filteredMenuItems = useMemo(() => {
     let filtered = [...menuItems];
 
     // Filter by search term
@@ -226,7 +98,7 @@ const MenuManagement = () => {
       filtered = filtered.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+        (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
       );
     }
 
@@ -244,9 +116,9 @@ const MenuManagement = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.created_at) - new Date(a.created_at);
         case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return new Date(a.created_at) - new Date(b.created_at);
         case 'name':
           return a.name.localeCompare(b.name);
         case 'price_high':
@@ -254,486 +126,658 @@ const MenuManagement = () => {
         case 'price_low':
           return a.price - b.price;
         case 'rating':
-          return b.rating - a.rating;
+          return (b.rating || 0) - (a.rating || 0);
         case 'reviews':
-          return b.totalReviews - a.totalReviews;
+          return (b.totalReviews || 0) - (a.totalReviews || 0);
         default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.created_at) - new Date(a.created_at);
       }
     });
 
-    setFilteredMenuItems(filtered);
-  }, [menuItems, searchTerm, categoryFilter, statusFilter, sortBy]);
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : (name === 'price' ? parseInt(value) || 0 : value)
-    }));
-    
-    // Clear error when user starts typing
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const addTag = () => {
-    if (!newTag.trim() || formData.tags.includes(newTag.trim())) return;
-    
-    setFormData(prev => ({
-      ...prev,
-      tags: [...prev.tags, newTag.trim()]
-    }));
-    setNewTag('');
-  };
-
-  const removeTag = (tagToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
-
-  const handleVariantChange = (variantId, checked) => {
-    setFormData(prev => ({
-      ...prev,
-      variants: checked 
-        ? [...prev.variants, variantId]
-        : prev.variants.filter(id => id !== variantId)
-    }));
-  };
-
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.name.trim()) {
-      errors.name = 'Nama menu wajib diisi';
+    if (isFeaturedFilterActive) {
+      filtered = filtered.filter(item => item.featured === true);
     }
 
-    if (!formData.description.trim()) {
-      errors.description = 'Deskripsi wajib diisi';
-    }
+    return filtered;
+  }, [menuItems, searchTerm, categoryFilter, statusFilter, sortBy, isFeaturedFilterActive]);
 
-    if (!formData.price || formData.price <= 0) {
-      errors.price = 'Harga harus lebih dari 0';
-    }
 
-    if (!formData.category) {
-      errors.category = 'Kategori wajib dipilih';
-    }
-
-    return errors;
-  };
-
-  const handleAddMenuItem = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
+  const handleAddMenuItem = useCallback(async (formDataFromDialog, setDialogErrors) => {
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const newMenuItem = {
-        id: Date.now(),
-        ...formData,
-        rating: 0,
-        totalReviews: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const formPayload = new FormData();
+      formPayload.append('name', formDataFromDialog.name);
+      formPayload.append('price', formDataFromDialog.price);
+      formPayload.append('description', formDataFromDialog.description);
+      formPayload.append('long_description', formDataFromDialog.longDescription || '');
+      formPayload.append('category', formDataFromDialog.category);
+      formPayload.append('is_available', formDataFromDialog.status === 'ACTIVE');
+      formPayload.append('featured', formDataFromDialog.featured);
+      formPayload.append('coffee_shop_id', 'ed634a6f-c12d-4ed4-8975-1926a2ee4a43');
 
-      setMenuItems(prev => [newMenuItem, ...prev]);
-      setIsAddDialogOpen(false);
-      setFormData({
-        name: '',
-        description: '',
-        longDescription: '',
-        price: 0,
-        category: 'COFFEE',
-        status: 'ACTIVE',
-        featured: false,
-        image: '',
-        tags: [],
-        variants: []
+      if (formDataFromDialog.image_file) {
+        formPayload.append('image_file', formDataFromDialog.image_file);
+      } else if (formDataFromDialog.image) {
+        formPayload.append('image_url', formDataFromDialog.image);
+      }
+
+      const response = await api.post('/admin/menu-management/menu', formPayload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setFormErrors({});
-      
+      console.log('Menu item added:', response.data);
+
+      await Promise.all(formDataFromDialog.variants.map(async (variantId) => {
+        try {
+          await api.post('/admin/menu-management/coffee-variants', {
+            coffee_id: response.data.id,
+            variant_id: variantId,
+            is_default: false
+          });
+        } catch (variantError) {
+          console.error(`Failed to add variant ${variantId} to coffee ${response.data.id}:`, variantError);
+        }
+      }));
+
+      fetchMenuItems();
+      setIsAddDialogOpen(false);
+      setDialogErrors({});
+
     } catch (error) {
-      setFormErrors({ general: 'Gagal menambahkan menu' });
+      console.error("Failed to add menu item:", error.response?.data || error.message);
+      setDialogErrors({ general: error.response?.data?.detail || 'Gagal menambahkan menu' });
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [api, fetchMenuItems]);
 
-  const handleEditMenuItem = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
+  const handleEditMenuItem = useCallback(async (formDataFromDialog, setDialogErrors) => {
+    if (!selectedMenuItem) return;
 
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setMenuItems(prev => prev.map(item =>
-        item.id === selectedMenuItem.id
-          ? { ...item, ...formData, updatedAt: new Date().toISOString() }
-          : item
-      ));
+      const formPayload = new FormData();
+      formPayload.append('name', formDataFromDialog.name);
+      formPayload.append('price', formDataFromDialog.price);
+      formPayload.append('description', formDataFromDialog.description);
+      formPayload.append('long_description', formDataFromDialog.longDescription || '');
+      formPayload.append('category', formDataFromDialog.category);
+      formPayload.append('is_available', formDataFromDialog.status === 'ACTIVE');
+      formPayload.append('featured', formDataFromDialog.featured);
+      formPayload.append('coffee_shop_id', formDataFromDialog.coffee_shop_id);
 
+      // Debug logging
+      console.log('Featured value being sent:', formDataFromDialog.featured === true ? 'true' : 'false');
+      console.log('Featured original value:', formDataFromDialog.featured);
+      console.log('Featured type:', typeof formDataFromDialog.featured);
+
+      if (formDataFromDialog.image_file) {
+        formPayload.append('image_file', formDataFromDialog.image_file);
+        formPayload.append('image_url', '');
+      } else if (formDataFromDialog.image !== selectedMenuItem.image_url) {
+        formPayload.append('image_url', formDataFromDialog.image || '');
+      }
+
+      const currentConnectedVariantIds = selectedMenuItem.variants
+        ? Object.values(selectedMenuItem.variants).flat().map(v => v.id)
+        : [];
+      const variantsToAdd = formDataFromDialog.variants.filter(id => !currentConnectedVariantIds.includes(id));
+      const variantsToRemove = currentConnectedVariantIds.filter(id => !formDataFromDialog.variants.includes(id));
+
+      await Promise.all(variantsToRemove.map(async (variantId) => {
+        try {
+          const coffeeVariantConnections = await api.get(`/admin/menu-management/coffee-variants?coffee_id=${selectedMenuItem.id}&variant_id=${variantId}`);
+          if (coffeeVariantConnections.data.length > 0) {
+            await api.delete(`/admin/menu-management/coffee-variants/${coffeeVariantConnections.data[0].id}`);
+          }
+        } catch (error) {
+          console.error(`Failed to remove variant ${variantId} from coffee ${selectedMenuItem.id}:`, error);
+        }
+      }));
+
+      await Promise.all(variantsToAdd.map(async (variantId) => {
+        try {
+          await api.post('/admin/menu-management/coffee-variants', {
+            coffee_id: selectedMenuItem.id,
+            variant_id: variantId,
+            is_default: false
+          });
+        } catch (error) {
+          console.error(`Failed to add variant ${variantId} to coffee ${selectedMenuItem.id}:`, error);
+        }
+      }));
+
+      const response = await api.put(`/admin/menu-management/menu/${selectedMenuItem.id}`, formPayload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      console.log('Menu item updated:', response.data);
+      fetchMenuItems();
       setIsEditDialogOpen(false);
       setSelectedMenuItem(null);
-      setFormData({
-        name: '',
-        description: '',
-        longDescription: '',
-        price: 0,
-        category: 'COFFEE',
-        status: 'ACTIVE',
-        featured: false,
-        image: '',
-        tags: [],
-        variants: []
-      });
-      setFormErrors({});
-      
+      setDialogErrors({});
+
     } catch (error) {
-      setFormErrors({ general: 'Gagal mengupdate menu' });
+      console.error("Failed to update menu item:", error.response?.data || error.message);
+      setDialogErrors({ general: error.response?.data?.detail || 'Gagal mengupdate menu' });
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [api, fetchMenuItems, selectedMenuItem]);
 
-  const handleDeleteMenuItem = async () => {
+  const handleDeleteMenuItem = useCallback(async () => {
     if (!menuItemToDelete) return;
 
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setMenuItems(prev => prev.filter(item => item.id !== menuItemToDelete.id));
+      await api.delete(`/admin/menu-management/menu/${menuItemToDelete.id}`);
+      console.log('Menu item deleted:', menuItemToDelete.id);
+      fetchMenuItems();
+
       setIsDeleteDialogOpen(false);
       setMenuItemToDelete(null);
-      
+
     } catch (error) {
-      alert('Gagal menghapus menu');
+      console.error("Failed to delete menu item:", error.response?.data || error.message);
+      alert('Gagal menghapus menu: ' + (error.response?.data?.detail || error.message));
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [menuItemToDelete, api, fetchMenuItems]);
 
-  const openEditDialog = (menuItem) => {
-    setSelectedMenuItem(menuItem);
-    setFormData({
-      name: menuItem.name,
-      description: menuItem.description,
-      longDescription: menuItem.longDescription,
-      price: menuItem.price,
-      category: menuItem.category,
-      status: menuItem.status,
-      featured: menuItem.featured,
-      image: menuItem.image,
-      tags: [...menuItem.tags],
-      variants: [...menuItem.variants]
-    });
-    setFormErrors({});
-    setIsEditDialogOpen(true);
-  };
+  const openEditDialog = useCallback(async (menuItem) => {
+    setIsLoading(true);
+    try {
+      const response = await api.get(`/admin/menu-management/menu/${menuItem.id}`);
+      const detailedMenuItem = response.data;
+      setSelectedMenuItem(detailedMenuItem);
+      setIsEditDialogOpen(true);
+    } catch (error) {
+      console.error("Failed to load menu item for edit:", error.response?.data || error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api]);
 
-  const openDeleteDialog = (menuItem) => {
+
+  const openDeleteDialog = useCallback((menuItem) => {
     setMenuItemToDelete(menuItem);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const formatPrice = (price) => {
+  // Memoize utility functions
+  const formatPrice = useCallback((price) => {
+    if (typeof price !== 'number') return 'Rp 0';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(price);
-  };
+  }, []);
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = useCallback((dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleString('id-ID', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return dateString;
+    }
+  }, []);
 
-  const getCategoryBadge = (category) => {
+  const getCategoryBadge = useCallback((category) => {
     const categoryConfig = categories.find(c => c.value === category);
     return (
-      <Badge className={`${categoryConfig.color} border-0`}>
+      <Badge className={`${categoryConfig?.color || 'bg-gray-100 text-gray-800'} border-0`}>
         <Coffee className="h-3 w-3 mr-1" />
-        {categoryConfig.label}
+        {categoryConfig?.label || category}
       </Badge>
     );
-  };
+  }, [categories]);
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = useCallback((status) => {
     const statusConfig = statuses.find(s => s.value === status);
     return (
-      <Badge className={`${statusConfig.color} border-0`}>
+      <Badge className={`${statusConfig?.color || 'bg-gray-100 text-gray-800'} border-0`}>
         {status === 'ACTIVE' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-        {statusConfig.label}
+        {statusConfig?.label || status}
       </Badge>
     );
-  };
+  }, [statuses]);
 
-  const MenuFormDialog = ({ isEdit = false, isOpen, onOpenChange, onSubmit }) => (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? 'Edit Menu' : 'Tambah Menu Baru'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit ? 'Update informasi menu' : 'Masukkan informasi menu baru'}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={onSubmit} className="space-y-6">
-          {formErrors.general && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{formErrors.general}</AlertDescription>
-            </Alert>
-          )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nama Menu *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Espresso Premium"
-                  className={formErrors.name ? 'border-red-500' : ''}
-                />
-                {formErrors.name && (
-                  <p className="text-sm text-red-500">{formErrors.name}</p>
-                )}
-              </div>
+  // UserFormDialog will now manage its own state
+  const MenuFormDialog = React.memo(({ isEdit = false, isOpen, onOpenChange, onSubmit, initialMenuItem = null }) => {
+    const [formData, setFormData] = useState(() => ({
+      name: initialMenuItem?.name || '',
+      description: initialMenuItem?.description || '',
+      longDescription: initialMenuItem?.long_description || '',
+      price: initialMenuItem?.price || 0,
+      category: initialMenuItem?.category || 'Coffee', // Default to 'Coffee'
+      status: initialMenuItem?.is_available ? 'ACTIVE' : 'INACTIVE',
+      featured: initialMenuItem?.featured || false,
+      image: initialMenuItem?.image_url || '',
+      image_file: null,
+      tags: initialMenuItem?.tags || [],
+      variants: initialMenuItem?.variants ? initialMenuItem.variants.map(v => v.id) : [],
+      coffee_shop_id: initialMenuItem?.coffee_shop_id || 'ed634a6f-c12d-4ed4-8975-1926a2ee4a43', // Default or initial value
+    }));
+    const [formErrors, setFormErrors] = useState({});
+    const [newTag, setNewTag] = useState('');
+    const [availableVariantTypes, setAvailableVariantTypes] = useState([]);
+    const [allAvailableVariants, setAllAvailableVariants] = useState([]);
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Deskripsi Singkat *</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Deskripsi singkat menu..."
-                  rows={3}
-                  className={formErrors.description ? 'border-red-500' : ''}
-                />
-                {formErrors.description && (
-                  <p className="text-sm text-red-500">{formErrors.description}</p>
-                )}
-              </div>
+    const debounceTimeoutRef = useRef(null);
 
-              <div className="space-y-2">
-                <Label htmlFor="longDescription">Deskripsi Lengkap</Label>
-                <Textarea
-                  id="longDescription"
-                  name="longDescription"
-                  value={formData.longDescription}
-                  onChange={handleInputChange}
-                  placeholder="Deskripsi lengkap menu untuk halaman detail..."
-                  rows={4}
-                />
-              </div>
+    const fetchAvailableVariantsData = useCallback(async () => {
+      try {
+        const typesResponse = await api.get('/admin/menu-management/variant-types');
+        setAvailableVariantTypes(typesResponse.data);
 
-              <div className="grid grid-cols-2 gap-4">
+        const variantsResponse = await api.get('/admin/menu-management/variants');
+        setAllAvailableVariants(variantsResponse.data);
+      } catch (error) {
+        console.error("Failed to fetch available variants data:", error.response?.data || error.message);
+      }
+    }, [api]);
+
+
+    useEffect(() => {
+      fetchAvailableVariantsData();
+    }, [fetchAvailableVariantsData]);
+
+    // Reset form data when dialog opens or initialMenuItem changes
+    useEffect(() => {
+      if (isOpen) {
+        setFormData({
+          name: initialMenuItem?.name || '',
+          description: initialMenuItem?.description || '',
+          longDescription: initialMenuItem?.long_description || '',
+          price: initialMenuItem?.price || 0,
+          category: initialMenuItem?.category || 'Coffee',
+          status: initialMenuItem?.is_available ? 'ACTIVE' : 'INACTIVE',
+          featured: initialMenuItem?.featured || false,
+          image: initialMenuItem?.image_url || '',
+          image_file: null,
+          tags: initialMenuItem?.tags || [],
+          variants: initialMenuItem?.variants ? initialMenuItem.variants.map(v => v.id) : [],
+          coffee_shop_id: initialMenuItem?.coffee_shop_id || 'ed634a6f-c12d-4ed4-8975-1926a2ee4a43',
+        });
+        setFormErrors({}); // Clear errors when dialog opens
+        setNewTag(''); // Clear new tag input
+      }
+    }, [isOpen, initialMenuItem]);
+
+    const handleInputChange = useCallback((e) => {
+      const { name, value, type, checked, files } = e.target;
+      if (name === 'image_file') {
+        setFormData(prev => ({
+          ...prev,
+          image_file: files[0],
+          image: ''
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: type === 'checkbox' ? checked : (name === 'price' ? parseInt(value) || 0 : value)
+        }));
+      }
+
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+
+      debounceTimeoutRef.current = setTimeout(() => {
+        if (formErrors[name]) {
+          setFormErrors(prev => ({
+            ...prev,
+            [name]: ''
+          }));
+        }
+      }, 300);
+    }, [formErrors]);
+
+    const addTag = useCallback(() => {
+      if (!newTag.trim() || formData.tags.includes(newTag.trim())) return;
+
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, newTag.trim()]
+      }));
+      setNewTag('');
+    }, [newTag, formData.tags]);
+
+    const removeTag = useCallback((tagToRemove) => {
+      setFormData(prev => ({
+        ...prev,
+        tags: prev.tags.filter(tag => tag !== tagToRemove)
+      }));
+    }, []);
+
+    const handleVariantChange = useCallback((variantId, checked) => {
+      setFormData(prev => ({
+        ...prev,
+        variants: checked
+          ? [...prev.variants, variantId]
+          : prev.variants.filter(id => id !== variantId)
+      }));
+    }, []);
+
+    const validateForm = useCallback(() => {
+      const errors = {};
+
+      if (!formData.name.trim()) {
+        errors.name = 'Nama menu wajib diisi';
+      }
+
+      if (!formData.description.trim()) {
+        errors.description = 'Deskripsi wajib diisi';
+      }
+
+      if (!formData.price || formData.price <= 0) {
+        errors.price = 'Harga harus lebih dari 0';
+      }
+
+      if (!formData.category) {
+        errors.category = 'Kategori wajib dipilih';
+      }
+
+      if (!isEdit && !formData.image_file && !formData.image) {
+        errors.image = 'Gambar menu wajib diupload atau URL gambar diisi';
+      }
+
+      return errors;
+    }, [formData, isEdit]);
+
+    const handleSubmit = useCallback(async (e) => {
+      e.preventDefault();
+
+      const errors = validateForm();
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return;
+      }
+
+      // Pass formData and setFormErrors to the parent's onSubmit function
+      await onSubmit(formData, setFormErrors);
+
+    }, [formData, validateForm, onSubmit]);
+
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {isEdit ? 'Edit Menu' : 'Tambah Menu Baru'}
+            </DialogTitle>
+            <DialogDescription>
+              {isEdit ? 'Update informasi menu' : 'Masukkan informasi menu baru'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {formErrors.general && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{formErrors.general}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Harga *</Label>
+                  <Label htmlFor="name">Nama Menu *</Label>
                   <Input
-                    id="price"
-                    name="price"
-                    type="number"
-                    value={formData.price}
+                    id="name"
+                    name="name"
+                    value={formData.name}
                     onChange={handleInputChange}
-                    placeholder="25000"
-                    className={formErrors.price ? 'border-red-500' : ''}
+                    placeholder="e.g., Espresso Premium"
+                    className={formErrors.name ? 'border-red-500' : ''}
                   />
-                  {formErrors.price && (
-                    <p className="text-sm text-red-500">{formErrors.price}</p>
+                  {formErrors.name && (
+                    <p className="text-sm text-red-500">{formErrors.name}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category">Kategori *</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                  >
-                    <SelectTrigger className={formErrors.category ? 'border-red-500' : ''}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
-                          {category.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {formErrors.category && (
-                    <p className="text-sm text-red-500">{formErrors.category}</p>
+                  <Label htmlFor="description">Deskripsi Singkat *</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Deskripsi singkat menu..."
+                    rows={3}
+                    className={formErrors.description ? 'border-red-500' : ''}
+                  />
+                  {formErrors.description && (
+                    <p className="text-sm text-red-500">{formErrors.description}</p>
                   )}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="status">Status *</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statuses.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="longDescription">Deskripsi Lengkap</Label>
+                  <Textarea
+                    id="longDescription"
+                    name="longDescription"
+                    value={formData.longDescription}
+                    onChange={handleInputChange}
+                    placeholder="Deskripsi lengkap menu untuk halaman detail..."
+                    rows={4}
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="featured">Menu Unggulan</Label>
-                  <div className="flex items-center space-x-2 pt-2">
-                    <Checkbox
-                      id="featured"
-                      name="featured"
-                      checked={formData.featured}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked }))}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Harga *</Label>
+                    <Input
+                      id="price"
+                      name="price"
+                      type="number"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      placeholder="25000"
+                      className={formErrors.price ? 'border-red-500' : ''}
                     />
-                    <Label htmlFor="featured" className="text-sm">
-                      Tampilkan sebagai menu unggulan
-                    </Label>
+                    {formErrors.price && (
+                      <p className="text-sm text-red-500">{formErrors.price}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Kategori *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                    >
+                      <SelectTrigger className={formErrors.category ? 'border-red-500' : ''}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.value} value={category.value}>
+                            {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.category && (
+                      <p className="text-sm text-red-500">{formErrors.category}</p>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="image">URL Gambar</Label>
-                <Input
-                  id="image"
-                  name="image"
-                  value={formData.image}
-                  onChange={handleInputChange}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="space-y-4">
-              {/* Tags Section */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Tags</Label>
-                
-                {/* Add New Tag */}
-                <div className="flex gap-2">
-                  <Input
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    placeholder="Tambah tag..."
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                  />
-                  <Button type="button" onClick={addTag} size="sm">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* Tags List */}
-                {formData.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {formData.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tag)}
-                          className="ml-1 hover:text-red-600"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    ))}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status *</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statuses.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
-              </div>
 
-              <Separator />
-
-              {/* Variants Section */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Variant yang Tersedia</Label>
-                <div className="space-y-2">
-                  {availableVariants.map((variant) => (
-                    <div key={variant.id} className="flex items-center space-x-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="featured">Menu Unggulan</Label>
+                    <div className="flex items-center space-x-2 pt-2">
                       <Checkbox
-                        id={`variant-${variant.id}`}
-                        checked={formData.variants.includes(variant.id)}
-                        onCheckedChange={(checked) => handleVariantChange(variant.id, checked)}
+                        id="featured"
+                        name="featured"
+                        checked={formData.featured}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked }))}
                       />
-                      <Label htmlFor={`variant-${variant.id}`} className="text-sm">
-                        {variant.name} ({variant.type})
-                      </Label>
+                      <Label htmlFor="featured">{formData.featured ? 'Ya' : 'Tidak'}</Label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="image_file">Gambar Menu</Label>
+                  <Input
+                    id="image_file"
+                    name="image_file"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleInputChange}
+                    className={formErrors.image ? 'border-red-500' : ''}
+                  />
+                  {formErrors.image && (
+                    <p className="text-sm text-red-500">{formErrors.image}</p>
+                  )}
+                  {formData.image && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      URL Gambar saat ini: <a href={formData.image} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">{formData.image}</a>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column */}
+              <div className="space-y-4">
+                {/* Tags Section */}
+                <div className="space-y-4">
+                  <Label className="text-base font-medium">Tags</Label>
+
+                  {/* Add New Tag */}
+                  <div className="flex gap-2">
+                    <Input
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      placeholder="Tambah tag..."
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                    />
+                    <Button type="button" onClick={addTag} size="sm">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Tags List */}
+                  {formData.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="ml-1 hover:text-red-600"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Variants Section */}
+                <div className="space-y-4">
+                  <Label className="text-base font-medium">Variant yang Tersedia</Label>
+                  {/* Loop melalui tipe varian, lalu varian di dalamnya */}
+                  {availableVariantTypes.map(type => (
+                    <div key={type.id} className="space-y-2 mb-4 p-3 border rounded-lg bg-muted/50">
+                      <p className="font-medium text-sm flex items-center gap-2">
+                        <Tag className="h-4 w-4" /> {type.name} ({type.is_required ? 'Wajib' : 'Opsional'})
+                      </p>
+                      <Separator />
+                      <div className="grid grid-cols-1 sm:grid-cols-1 gap-2">
+                        {allAvailableVariants
+                          .filter(variant => variant.variant_type_id === type.id)
+                          .map(variant => (
+                            <div key={variant.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`variant-${variant.id}`}
+                                checked={formData.variants.includes(variant.id)}
+                                onCheckedChange={(checked) => handleVariantChange(variant.id, checked)}
+                                disabled={!variant.is_available} // Disable jika varian tidak tersedia
+                              />
+                              <Label htmlFor={`variant-${variant.id}`} className={`text-sm cursor-pointer ${!variant.is_available ? 'text-muted-foreground' : ''}`}>
+                                {variant.name}
+                                {variant.additional_price > 0 && (
+                                  <span className="ml-1 text-xs text-primary">
+                                    (+{formatPrice(variant.additional_price)})
+                                  </span>
+                                )}
+                                {!variant.is_available && (
+                                  <Badge variant="secondary" className="ml-2 text-xs">Tidak Tersedia</Badge>
+                                )}
+                              </Label>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-2 pt-4">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Update' : 'Tambah'} Menu
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Batal
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+            <div className="flex gap-2 pt-4">
+              <div className="flex gap-2 pt-4">
+                <Button type="submit" disabled={isSubmitting} className="flex-1">
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isEdit ? 'Update' : 'Tambah'} Menu
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Batal
+                </Button>
+              </div>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  });
+
 
   if (isLoading) {
     return (
@@ -759,7 +803,10 @@ const MenuManagement = () => {
               Kelola menu kopi dan minuman
             </p>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => {
+            setSelectedMenuItem(null); // Ensure no menu item is selected for add
+            setIsAddDialogOpen(true);
+          }}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Menu
           </Button>
@@ -847,6 +894,16 @@ const MenuManagement = () => {
                   className="pl-10"
                 />
               </div>
+
+              <Select value={isFeaturedFilterActive ? 'featured' : 'all'} onValueChange={(value) => setIsFeaturedFilterActive(value === 'featured')}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Unggulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Menu</SelectItem>
+                  <SelectItem value="featured">Menu Unggulan</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Category Filter */}
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -955,21 +1012,21 @@ const MenuManagement = () => {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                              {menuItem.image ? (
-                                <img 
-                                  src={menuItem.image} 
+                              {menuItem.image_url ? (
+                                <img
+                                  src={menuItem.image_url}
                                   alt={menuItem.name}
                                   className="w-full h-full object-cover rounded"
                                 />
                               ) : (
-                                <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                <Coffee className="h-6 w-6 text-muted-foreground" />
                               )}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="font-medium truncate">{menuItem.name}</p>
                                 {menuItem.featured && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-xs bg-purple-500 text-white">
                                     <Star className="h-3 w-3 mr-1" />
                                     Unggulan
                                   </Badge>
@@ -978,7 +1035,7 @@ const MenuManagement = () => {
                               <p className="text-sm text-muted-foreground truncate">
                                 {menuItem.description}
                               </p>
-                              {menuItem.tags.length > 0 && (
+                              {menuItem.tags && menuItem.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {menuItem.tags.slice(0, 2).map((tag) => (
                                     <Badge key={tag} variant="outline" className="text-xs">
@@ -1017,7 +1074,7 @@ const MenuManagement = () => {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {formatDate(menuItem.createdAt)}
+                            {formatDate(menuItem.created_at)}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -1034,7 +1091,7 @@ const MenuManagement = () => {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => openDeleteDialog(menuItem)}
                                 className="text-red-600"
                               >
@@ -1058,6 +1115,7 @@ const MenuManagement = () => {
           isOpen={isAddDialogOpen}
           onOpenChange={setIsAddDialogOpen}
           onSubmit={handleAddMenuItem}
+          initialMenuItem={null}
         />
 
         {/* Edit Menu Dialog */}
@@ -1066,6 +1124,7 @@ const MenuManagement = () => {
           isOpen={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
           onSubmit={handleEditMenuItem}
+          initialMenuItem={selectedMenuItem}
         />
 
         {/* Delete Confirmation Dialog */}
@@ -1074,13 +1133,13 @@ const MenuManagement = () => {
             <DialogHeader>
               <DialogTitle>Konfirmasi Hapus Menu</DialogTitle>
               <DialogDescription>
-                Apakah Anda yakin ingin menghapus menu "{menuItemToDelete?.name}"? 
+                Apakah Anda yakin ingin menghapus menu "{menuItemToDelete?.name}"?
                 Tindakan ini tidak dapat dibatalkan.
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 pt-4">
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={handleDeleteMenuItem}
                 disabled={isSubmitting}
                 className="flex-1"
@@ -1088,8 +1147,8 @@ const MenuManagement = () => {
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Hapus Menu
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setIsDeleteDialogOpen(false)}
                 disabled={isSubmitting}
               >

@@ -13,6 +13,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
+// Import Select components
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+
 import {
     Coffee,
     Star,
@@ -84,10 +93,16 @@ const CoffeeDetailPage = () => {
                         initialPrice += defaultVariant.additional_price;
                     }
 
+                    // For optional variants, if no default is set,
+                    // we want the select to show its placeholder, meaning no selection.
+                    // This means `selectedVariants[variantTypeId]` should be `undefined` initially
+                    // if there's no default and it's not required.
                     else if (variantList[0]?.is_required && variantList.length > 0) {
                         initialVariants[variantList[0].variant_type_id] = variantList[0].id;
                         initialPrice += variantList[0].additional_price;
                     }
+                    // If not required and no default, leave it undefined in initialVariants
+                    // so the Select component shows its placeholder.
                 });
             }
             setSelectedVariants(initialVariants);
@@ -115,12 +130,15 @@ const CoffeeDetailPage = () => {
         if (coffee) {
             let currentPrice = coffee.price;
             Object.values(selectedVariants).forEach(selectedVariantId => {
-                Object.values(coffee.variants || {}).forEach(variantList => {
-                    const foundVariant = variantList.find(v => v.id === selectedVariantId);
-                    if (foundVariant) {
-                        currentPrice += foundVariant.additional_price;
-                    }
-                });
+                // Only add price if selectedVariantId is not undefined/null/empty string
+                if (selectedVariantId) {
+                    Object.values(coffee.variants || {}).forEach(variantList => {
+                        const foundVariant = variantList.find(v => v.id === selectedVariantId);
+                        if (foundVariant) {
+                            currentPrice += foundVariant.additional_price;
+                        }
+                    });
+                }
             });
             setTotalPrice(currentPrice * quantity);
         }
@@ -132,12 +150,15 @@ const CoffeeDetailPage = () => {
     }, []);
 
     // ✅ Callback untuk variant change
-    const handleVariantChange = useCallback((variantTypeId, variantId) => {
+    const handleVariantChange = useCallback((variantTypeId, value) => {
+        // If the value passed is a special "no-selection" indicator, store undefined
+        // Otherwise, store the actual variant ID
         setSelectedVariants(prev => ({
             ...prev,
-            [variantTypeId]: variantId
+            [variantTypeId]: value === "no-selection" ? undefined : value
         }));
     }, []);
+
 
     const handleAddToCart = () => {
         if (!coffee.is_available) {
@@ -158,12 +179,12 @@ const CoffeeDetailPage = () => {
             const isRequired = variantList[0]?.is_required;
             const selectedVariantId = selectedVariants[variantTypeId];
 
-            if (isRequired && !selectedVariantId) {
+            if (isRequired && !selectedVariantId) { // `selectedVariantId` will be `undefined` if "Tidak Ada" was selected for a required field
                 missingRequired = true;
                 return;
             }
 
-            if (selectedVariantId) {
+            if (selectedVariantId) { // This check naturally skips `undefined` and empty strings
                 const detail = variantList.find(v => v.id === selectedVariantId);
                 if (detail) {
                     variantsToSendToCart.push({
@@ -251,7 +272,7 @@ const CoffeeDetailPage = () => {
         if (!isAuthenticated) {
             setRatingError("Anda harus login untuk memberikan rating.");
             return;
-        }
+            }
 
         setIsSubmittingRating(true);
         setRatingSuccess('');
@@ -471,33 +492,50 @@ const CoffeeDetailPage = () => {
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold">Pilih Varian</h3>
                             <Separator />
-                            {Object.entries(coffee.variants).map(([variantTypeName, variantsList]) => (
-                                <div key={variantTypeName} className="space-y-2">
-                                    <Label className="text-lg">
-                                        {/* Cek `is_required` dari item pertama di list varian */}
-                                        {variantTypeName} {variantsList.some(v => v.is_required) ? '(Wajib)' : ''}:
-                                    </Label>
-                                    <RadioGroup
-                                        // `value` harus dari selectedVariants berdasarkan variant_type_id
-                                        value={selectedVariants[variantsList[0]?.variant_type_id] || ''}
-                                        // `onValueChange` harus mengupdate selectedVariants dengan variant_type_id dan variant.id
-                                        onValueChange={(value) => handleVariantChange(variantsList[0]?.variant_type_id, value)}
-                                        className="flex flex-wrap gap-3"
-                                    >
-                                        {variantsList.map(variant => (
-                                            <div key={variant.id} className="flex items-center space-x-2">
-                                                <RadioGroupItem value={variant.id} id={variant.id} disabled={!variant.is_available} />
-                                                <Label htmlFor={variant.id} className={!variant.is_available ? "text-muted-foreground line-through" : ""}>
-                                                    {variant.name} {variant.additional_price > 0 && `(+${formatPrice(variant.additional_price)})`}
-                                                    {!variant.is_available && " (Tidak Tersedia)"}
-                                                </Label>
-                                            </div>
-                                        ))}
-                                    </RadioGroup>
-                                </div>
-                            ))}
+                            {Object.entries(coffee.variants).map(([variantTypeName, variantsList]) => {
+                                const variantTypeId = variantsList[0]?.variant_type_id;
+                                const isRequired = variantsList.some(v => v.is_required);
+
+                                return (
+                                    <div key={variantTypeName} className="space-y-2">
+                                        <Label className="text-sm">
+                                            {variantTypeName} {isRequired ? '*' : ''}
+                                        </Label>
+                                        <Select
+                                            // `value` untuk Select harus string. Jika `selectedVariants[variantTypeId]` adalah undefined,
+                                            // kirim string kosong agar placeholder muncul.
+                                            value={selectedVariants[variantTypeId] === undefined ? "" : selectedVariants[variantTypeId]}
+                                            onValueChange={(value) => handleVariantChange(variantTypeId, value)}
+                                        >
+                                            <SelectTrigger className="w-48"> {/* Sesuaikan lebar sesuai keinginan */}
+                                                <SelectValue placeholder={`Pilih ${variantTypeName}`} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {/* Tambahkan opsi "Tidak Ada" hanya jika varian tidak wajib */}
+                                                {!isRequired && (
+                                                    // Gunakan nilai yang jelas berbeda dari ID varian, misalnya "no-selection"
+                                                    // atau biarkan `value` tidak ada (tapi itu akan memicu Radix warning di beberapa versi).
+                                                    // Menggunakan `value="no-selection"` adalah pendekatan yang aman.
+                                                    <SelectItem value="no-selection">Tidak Ada / Batal</SelectItem>
+                                                )}
+
+                                                {variantsList.map(variant => (
+                                                    <SelectItem
+                                                        key={variant.id}
+                                                        value={variant.id} // value ini adalah ID varian
+                                                        disabled={!variant.is_available}
+                                                    >
+                                                        {variant.name} {variant.additional_price > 0 && `(+${formatPrice(variant.additional_price)})`}
+                                                        {!variant.is_available && " (Tidak Tersedia)"}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    ) : null /* Jika tidak ada varian, tidak render bagian ini */}
+                    ) : null}
 
                     {/* Quantity */}
                     <div className="space-y-2">
@@ -565,7 +603,7 @@ const CoffeeDetailPage = () => {
             </div>
 
             {/* Tabs for Description and Reviews */}
-            <Tabs defaultValue="description" className="w-full">
+                        <Tabs defaultValue="description" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="description">Deskripsi</TabsTrigger>
                     <TabsTrigger value="reviews">
