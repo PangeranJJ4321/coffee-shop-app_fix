@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,10 +35,9 @@ import {
 } from 'lucide-react';
 
 const UserManagement = () => {
-  const { user: currentUser } = useAuth();
-  
+  const { user: currentUser, api } = useAuth();
+
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,116 +48,31 @@ const UserManagement = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    role: 'USER',
-    status: 'ACTIVE',
-    password: ''
-  });
-  const [formErrors, setFormErrors] = useState({});
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  // Mock user data
-  const mockUsers = [
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john@example.com',
-      phone: '081234567890',
-      role: 'USER',
-      status: 'ACTIVE',
-      avatar: null,
-      createdAt: '2024-01-15T10:30:00Z',
-      lastLogin: '2024-01-20T14:25:00Z',
-      totalOrders: 15,
-      totalSpent: 450000
-    },
-    {
-      id: 2,
-      name: 'Admin Coffee Shop',
-      email: 'admin@coffeeshop.com',
-      phone: '081234567891',
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      avatar: null,
-      createdAt: '2023-12-01T09:00:00Z',
-      lastLogin: '2024-01-20T16:45:00Z',
-      totalOrders: 0,
-      totalSpent: 0
-    },
-    {
-      id: 3,
-      name: 'Sarah Wilson',
-      email: 'sarah@example.com',
-      phone: '081234567892',
-      role: 'USER',
-      status: 'ACTIVE',
-      avatar: null,
-      createdAt: '2024-01-10T11:15:00Z',
-      lastLogin: '2024-01-19T09:30:00Z',
-      totalOrders: 8,
-      totalSpent: 240000
-    },
-    {
-      id: 4,
-      name: 'Mike Johnson',
-      email: 'mike@example.com',
-      phone: '081234567893',
-      role: 'USER',
-      status: 'INACTIVE',
-      avatar: null,
-      createdAt: '2024-01-05T16:20:00Z',
-      lastLogin: '2024-01-15T12:10:00Z',
-      totalOrders: 3,
-      totalSpent: 95000
-    },
-    {
-      id: 5,
-      name: 'Emma Davis',
-      email: 'emma@example.com',
-      phone: '081234567894',
-      role: 'USER',
-      status: 'ACTIVE',
-      avatar: null,
-      createdAt: '2023-12-20T14:45:00Z',
-      lastLogin: '2024-01-20T11:20:00Z',
-      totalOrders: 22,
-      totalSpent: 680000
-    }
-  ];
 
-  const roles = [
+  // Memoize constants to prevent re-renders
+  const roles = useMemo(() => [
     { value: 'USER', label: 'User', color: 'bg-blue-100 text-blue-800' },
     { value: 'ADMIN', label: 'Admin', color: 'bg-purple-100 text-purple-800' }
-  ];
+  ], []);
 
-  const statuses = [
+  const statuses = useMemo(() => [
     { value: 'ACTIVE', label: 'Aktif', color: 'bg-green-100 text-green-800' },
     { value: 'INACTIVE', label: 'Tidak Aktif', color: 'bg-red-100 text-red-800' }
-  ];
+  ], []);
 
-  useEffect(() => {
-    // Simulate API call
-    setIsLoading(true);
-    setTimeout(() => {
-      setUsers(mockUsers);
-      setFilteredUsers(mockUsers);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  useEffect(() => {
+  // Memoize filtered users to prevent unnecessary re-calculations
+  const filteredUsers = useMemo(() => {
     let filtered = [...users];
 
     // Filter by search term
-    if (searchTerm) {
+    if (searchTerm && searchTerm.trim() !== "") {
       filtered = filtered.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phone.includes(searchTerm)
+        (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.phone_number || "").includes(searchTerm)
       );
     }
 
@@ -176,220 +90,159 @@ const UserManagement = () => {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.created_at) - new Date(a.created_at);
         case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return new Date(a.created_at) - new Date(b.created_at);
         case 'name':
           return a.name.localeCompare(b.name);
         case 'email':
           return a.email.localeCompare(b.email);
         case 'orders':
-          return b.totalOrders - a.totalOrders;
+          return (b.total_orders_count || 0) - (a.total_orders_count || 0);
         case 'spent':
-          return b.totalSpent - a.totalSpent;
+          return (b.total_spent_amount || 0) - (a.total_spent_amount || 0);
         default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return new Date(b.created_at) - new Date(a.created_at);
       }
     });
 
-    setFilteredUsers(filtered);
+    return filtered;
   }, [users, searchTerm, roleFilter, statusFilter, sortBy]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const validateForm = (isEdit = false) => {
-    const errors = {};
-
-    if (!formData.name.trim()) {
-      errors.name = 'Nama wajib diisi';
-    }
-
-    if (!formData.email.trim()) {
-      errors.email = 'Email wajib diisi';
-    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      errors.email = 'Format email tidak valid';
-    } else {
-      // Check if email already exists (except for current user in edit mode)
-      const existingUser = users.find(user => 
-        user.email === formData.email && (!isEdit || user.id !== selectedUser?.id)
-      );
-      if (existingUser) {
-        errors.email = 'Email sudah digunakan';
-      }
-    }
-
-    if (!formData.phone.trim()) {
-      errors.phone = 'Nomor telepon wajib diisi';
-    } else if (!/^08\d{8,11}$/.test(formData.phone)) {
-      errors.phone = 'Format nomor telepon tidak valid';
-    }
-
-    if (!isEdit && !formData.password.trim()) {
-      errors.password = 'Password wajib diisi';
-    } else if (!isEdit && formData.password.length < 6) {
-      errors.password = 'Password minimal 6 karakter';
-    }
-
-    return errors;
-  };
-
-  const handleAddUser = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    setIsSubmitting(true);
-
+  const fetchUsers = useCallback(async () => {
+    setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const newUser = {
-        id: Date.now(),
-        ...formData,
-        avatar: null,
-        createdAt: new Date().toISOString(),
-        lastLogin: null,
-        totalOrders: 0,
-        totalSpent: 0
-      };
-
-      setUsers(prev => [newUser, ...prev]);
-      setIsAddDialogOpen(false);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        role: 'USER',
-        status: 'ACTIVE',
-        password: ''
-      });
-      setFormErrors({});
-      
+      const response = await api.get('/admin/user-management/users');
+      setUsers(response.data);
+      console.log('Users fetched:', response.data);
     } catch (error) {
-      setFormErrors({ general: 'Gagal menambahkan user' });
+      console.error("Failed to fetch users:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+
+  // handleAddUser and handleEditUser will now receive the form data from the dialog
+  const handleAddUser = useCallback(async (formDataFromDialog, setDialogErrors) => {
+    setIsSubmitting(true);
+    try {
+      const userPayload = {
+        name: formDataFromDialog.name,
+        email: formDataFromDialog.email,
+        phone_number: formDataFromDialog.phone_number,
+        role: formDataFromDialog.role,
+        password: formDataFromDialog.password
+      };
+      const response = await api.post('/admin/user-management/users', userPayload);
+      console.log('User added:', response.data);
+      fetchUsers();
+      setIsAddDialogOpen(false);
+      setDialogErrors({}); // Clear any local errors in dialog
+    } catch (error) {
+      console.error("Failed to add user:", error.response?.data || error.message);
+      setDialogErrors({ general: error.response?.data?.detail || 'Gagal menambahkan user' });
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [api, fetchUsers]);
 
-  const handleEditUser = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm(true);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
+  const handleEditUser = useCallback(async (formDataFromDialog, setDialogErrors) => {
+    if (!selectedUser) return;
 
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setUsers(prev => prev.map(user =>
-        user.id === selectedUser.id
-          ? { ...user, ...formData }
-          : user
-      ));
+      const userPayload = {
+        name: formDataFromDialog.name,
+        email: formDataFromDialog.email,
+        phone_number: formDataFromDialog.phone_number,
+        role: formDataFromDialog.role,
+        is_active: formDataFromDialog.status === 'ACTIVE' ? true : false // Ensure boolean for is_active
+      };
+
+      if (formDataFromDialog.password) {
+        userPayload.password = formDataFromDialog.password;
+      }
+
+      const response = await api.put(`/admin/user-management/users/${selectedUser.id}`, userPayload);
+      console.log('User updated:', response.data);
+      fetchUsers();
 
       setIsEditDialogOpen(false);
       setSelectedUser(null);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        role: 'USER',
-        status: 'ACTIVE',
-        password: ''
-      });
-      setFormErrors({});
-      
+      setDialogErrors({}); // Clear any local errors in dialog
     } catch (error) {
-      setFormErrors({ general: 'Gagal mengupdate user' });
+      console.error("Failed to update user:", error.response?.data || error.message);
+      setDialogErrors({ general: error.response?.data?.detail || 'Gagal mengupdate user' });
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [api, fetchUsers, selectedUser]);
 
-  const handleDeleteUser = async () => {
+  const handleDeleteUser = useCallback(async () => {
     if (!userToDelete) return;
 
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setUsers(prev => prev.filter(user => user.id !== userToDelete.id));
+      await api.delete(`/admin/user-management/users/${userToDelete.id}`);
+      console.log('User deleted:', userToDelete.id);
+      fetchUsers();
+
       setIsDeleteDialogOpen(false);
       setUserToDelete(null);
-      
     } catch (error) {
-      alert('Gagal menghapus user');
+      console.error("Failed to delete user:", error.response?.data || error.message);
+      alert('Gagal menghapus user: ' + (error.response?.data?.detail || error.message));
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [userToDelete, api, fetchUsers]);
 
-  const openEditDialog = (user) => {
+  const openEditDialog = useCallback((user) => {
     setSelectedUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      status: user.status,
-      password: ''
-    });
-    setFormErrors({});
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const openDeleteDialog = (user) => {
+  const openDeleteDialog = useCallback((user) => {
     setUserToDelete(user);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const formatPrice = (price) => {
+  // Memoize utility functions
+  const formatPrice = useCallback((price) => {
+    if (typeof price !== 'number') return 'Rp 0';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(price);
-  };
+  }, []);
 
-  const formatDate = (dateString) => {
+  const formatDate = useCallback((dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleString('id-ID', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return dateString;
+    }
+  }, []);
 
-  const getRoleBadge = (role) => {
+  const getRoleBadge = useCallback((role) => {
     const roleConfig = roles.find(r => r.value === role);
     return (
       <Badge className={`${roleConfig.color} border-0`}>
@@ -397,9 +250,9 @@ const UserManagement = () => {
         {roleConfig.label}
       </Badge>
     );
-  };
+  }, [roles]);
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = useCallback((status) => {
     const statusConfig = statuses.find(s => s.value === status);
     return (
       <Badge className={`${statusConfig.color} border-0`}>
@@ -407,158 +260,318 @@ const UserManagement = () => {
         {statusConfig.label}
       </Badge>
     );
-  };
+  }, [statuses]);
 
-  const UserFormDialog = ({ isEdit = false, isOpen, onOpenChange, onSubmit }) => (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? 'Edit User' : 'Tambah User Baru'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit ? 'Update informasi user' : 'Masukkan informasi user baru'}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={onSubmit} className="space-y-4">
-          {formErrors.general && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{formErrors.general}</AlertDescription>
-            </Alert>
-          )}
+  // UserFormDialog will now manage its own state
+  const UserFormDialog = React.memo(({ isEdit = false, isOpen, onOpenChange, onSubmit, initialUser = null, allUsers = [] }) => {
+    const [formData, setFormData] = useState(() => ({
+      name: initialUser?.name || '',
+      email: initialUser?.email || '',
+      phone_number: initialUser?.phone_number || '',
+      role: initialUser?.role || 'USER',
+      status: initialUser?.is_active ? 'ACTIVE' : 'INACTIVE',
+      password: ''
+    }));
+    const [formErrors, setFormErrors] = useState({});
+    const [showPassword, setShowPassword] = useState(false);
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Nama Lengkap *</Label>
-            <Input
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              className={formErrors.name ? 'border-red-500' : ''}
-            />
-            {formErrors.name && (
-              <p className="text-sm text-red-500">{formErrors.name}</p>
+    // Function to calculate password strength
+    const getPasswordStrength = useCallback((password) => {
+      if (!password) return { strength: 0, label: '', color: '' };
+
+      let strength = 0;
+      if (password.length >= 8) strength++;
+      if (/[A-Z]/.test(password)) strength++;
+      if (/[0-9]/.test(password)) strength++;
+      if (/[^A-Za-z0-9]/.test(password)) strength++;
+      if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
+
+      const levels = [
+        { label: 'Sangat Lemah', color: 'text-red-500' },
+        { label: 'Lemah', color: 'text-orange-500' },
+        { label: 'Sedang', color: 'text-yellow-500' },
+        { label: 'Kuat', color: 'text-blue-500' },
+        { label: 'Sangat Kuat', color: 'text-green-500' }
+      ];
+
+      return { strength, ...levels[Math.min(strength, 4)] };
+    }, []);
+
+    const passwordStrength = useMemo(() => getPasswordStrength(formData.password), [formData.password, getPasswordStrength]);
+
+
+    // Reset form data when dialog opens for a new user or changes initial user
+    useEffect(() => {
+      if (isOpen) {
+        setFormData({
+          name: initialUser?.name || '',
+          email: initialUser?.email || '',
+          phone_number: initialUser?.phone_number || '',
+          role: initialUser?.role || 'USER',
+          status: initialUser?.is_active ? 'ACTIVE' : 'INACTIVE',
+          password: ''
+        });
+        setFormErrors({}); // Clear errors when dialog opens
+      }
+    }, [isOpen, initialUser]);
+
+    const debounceTimeoutRef = useRef(null);
+
+    const handleInputChange = useCallback((e) => {
+      const { name, value } = e.target;
+
+      // Immediately update the form data
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+
+      // Clear previous debounce timeout for validation/error clearing
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+
+      // Set a new debounce timeout for clearing errors
+      debounceTimeoutRef.current = setTimeout(() => {
+        if (formErrors[name]) {
+          setFormErrors(prev => ({
+            ...prev,
+            [name]: ''
+          }));
+        }
+      }, 300); // Adjust the delay as needed for validation/error clearing
+    }, [formErrors]); // formErrors is a dependency because we check formErrors[name]
+
+    // Memoize validation function - it now receives `allUsers` for email uniqueness check
+    const validateForm = useCallback((isEditMode = false) => {
+      const errors = {};
+
+      if (!formData.name.trim()) {
+        errors.name = 'Nama wajib diisi';
+      }
+
+      if (!formData.email.trim()) {
+        errors.email = 'Email wajib diisi';
+      } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+        errors.email = 'Format email tidak valid';
+      } else {
+        // Check if email already exists (except for current user in edit mode)
+        const existingUser = allUsers.find(user =>
+          user.email === formData.email && (!isEditMode || user.id !== initialUser?.id)
+        );
+        if (existingUser) {
+          errors.email = 'Email sudah digunakan';
+        }
+      }
+
+      if (!formData.phone_number?.trim()) {
+        errors.phone_number = 'Nomor telepon wajib diisi';
+      } else if (!/^(\+62|0)\d{8,12}$/.test(formData.phone_number)) {
+        errors.phone_number = 'Format nomor telepon tidak valid. Contoh: 081234567890 atau +6281234567890.';
+      }
+
+      // Password validation with strength check
+      if (!isEditMode && !formData.password.trim()) {
+        errors.password = 'Password wajib diisi';
+      } else if (formData.password.trim() && formData.password.length < 8) { // Only check length if not empty
+        errors.password = 'Password minimal 8 karakter';
+      } else if (formData.password.trim() && passwordStrength.strength < 3 && !isEditMode) { // Require at least 'Sedang' strength for new users
+        errors.password = 'Password terlalu lemah. Minimal harus memiliki 3 dari 5 kriteria (panjang >= 8, huruf kapital, angka, simbol).';
+      }
+
+
+      return errors;
+    }, [formData, allUsers, initialUser, passwordStrength.strength]);
+
+
+    const handleSubmit = useCallback(async (e) => {
+      e.preventDefault();
+
+      const errors = validateForm(isEdit);
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return;
+      }
+
+      // Pass formData and setFormErrors to the parent's onSubmit function
+      await onSubmit(formData, setFormErrors);
+
+    }, [formData, validateForm, isEdit, onSubmit]);
+
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {isEdit ? 'Edit User' : 'Tambah User Baru'}
+            </DialogTitle>
+            <DialogDescription>
+              {isEdit ? 'Update informasi user' : 'Masukkan informasi user baru'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {formErrors.general && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{formErrors.general}</AlertDescription>
+              </Alert>
             )}
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className={formErrors.email ? 'border-red-500' : ''}
-            />
-            {formErrors.email && (
-              <p className="text-sm text-red-500">{formErrors.email}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone">Nomor Telepon *</Label>
-            <Input
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              placeholder="08xxxxxxxxxx"
-              className={formErrors.phone ? 'border-red-500' : ''}
-            />
-            {formErrors.phone && (
-              <p className="text-sm text-red-500">{formErrors.phone}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="role">Role *</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Status *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">
-              Password {isEdit ? '(Kosongkan jika tidak ingin mengubah)' : '*'}
-            </Label>
-            <div className="relative">
+              <Label htmlFor="name">Nama Lengkap *</Label>
               <Input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
+                id="name"
+                name="name"
+                value={formData.name}
                 onChange={handleInputChange}
-                className={formErrors.password ? 'border-red-500' : ''}
+                className={formErrors.name ? 'border-red-500' : ''}
               />
+              {formErrors.name && (
+                <p className="text-sm text-red-500">{formErrors.name}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                className={formErrors.email ? 'border-red-500' : ''}
+              />
+              {formErrors.email && (
+                <p className="text-sm text-red-500">{formErrors.email}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone_number">Nomor Telepon *</Label>
+              <Input
+                id="phone_number"
+                name="phone_number"
+                value={formData.phone_number}
+                onChange={handleInputChange}
+                placeholder="08xxxxxxxxxx"
+                className={formErrors.phone_number ? 'border-red-500' : ''}
+              />
+              {formErrors.phone_number && (
+                <p className="text-sm text-red-500">{formErrors.phone_number}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="role">Role *</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {isEdit && (
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status *</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                Password {isEdit ? '(Kosongkan jika tidak ingin mengubah)' : '*'}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className={formErrors.password ? 'border-red-500' : ''}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              {/* Password strength indicator */}
+              {formData.password.length > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 h-2 rounded-full bg-gray-200">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300
+                        ${passwordStrength.strength === 0 && 'w-0'}
+                        ${passwordStrength.strength === 1 && 'w-1/4 bg-red-500'}
+                        ${passwordStrength.strength === 2 && 'w-2/4 bg-orange-500'}
+                        ${passwordStrength.strength === 3 && 'w-3/4 bg-yellow-500'}
+                        ${passwordStrength.strength === 4 && 'w-full bg-blue-500'}
+                        ${passwordStrength.strength === 5 && 'w-full bg-green-500'}
+                      `}
+                    ></div>
+                  </div>
+                  <span className={`text-sm font-medium ${passwordStrength.color}`}>
+                    {passwordStrength.label}
+                  </span>
+                </div>
+              )}
+              {formErrors.password && (
+                <p className="text-sm text-red-500">{formErrors.password}</p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" disabled={isSubmitting} className="flex-1">
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEdit ? 'Update' : 'Tambah'} User
+              </Button>
               <Button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3"
-                onClick={() => setShowPassword(!showPassword)}
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                Batal
               </Button>
             </div>
-            {formErrors.password && (
-              <p className="text-sm text-red-500">{formErrors.password}</p>
-            )}
-          </div>
-
-          <div className="flex gap-2 pt-4">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Update' : 'Tambah'} User
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Batal
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  });
 
   if (isLoading) {
     return (
@@ -584,7 +597,10 @@ const UserManagement = () => {
               Kelola user dan hak akses sistem
             </p>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => {
+            setSelectedUser(null); // Ensure no user is selected for add
+            setIsAddDialogOpen(true);
+          }}>
             <UserPlus className="mr-2 h-4 w-4" />
             Tambah User
           </Button>
@@ -679,6 +695,7 @@ const UserManagement = () => {
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Semua Role</SelectItem>
                   {roles.map((role) => (
                     <SelectItem key={role.value} value={role.value}>
                       {role.label}
@@ -693,6 +710,7 @@ const UserManagement = () => {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
                   {statuses.map((status) => (
                     <SelectItem key={status.value} value={status.value}>
                       {status.label}
@@ -785,7 +803,7 @@ const UserManagement = () => {
                             </Avatar>
                             <div>
                               <p className="font-medium">{user.name}</p>
-                              <p className="text-sm text-muted-foreground">ID: {user.id}</p>
+                              <p className="text-sm text-muted-foreground">ID: {user.id.slice(0, 4)}...</p>
                             </div>
                           </div>
                         </TableCell>
@@ -797,7 +815,7 @@ const UserManagement = () => {
                             </div>
                             <div className="flex items-center gap-1 text-sm">
                               <Phone className="h-3 w-3" />
-                              {user.phone}
+                              {user.phone_number ? user.phone_number : 'Belum diisi'}
                             </div>
                           </div>
                         </TableCell>
@@ -818,12 +836,12 @@ const UserManagement = () => {
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <Calendar className="h-3 w-3" />
-                            {formatDate(user.createdAt)}
+                            {formatDate(user.member_since)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {formatDate(user.lastLogin)}
+                            {formatDate(user.last_login)}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -841,7 +859,7 @@ const UserManagement = () => {
                                 Edit
                               </DropdownMenuItem>
                               {user.id !== currentUser?.id && (
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   onClick={() => openDeleteDialog(user)}
                                   className="text-red-600"
                                 >
@@ -866,6 +884,8 @@ const UserManagement = () => {
           isOpen={isAddDialogOpen}
           onOpenChange={setIsAddDialogOpen}
           onSubmit={handleAddUser}
+          initialUser={null} // No initial user for adding
+          allUsers={users} // Pass all users for email uniqueness validation
         />
 
         {/* Edit User Dialog */}
@@ -874,6 +894,8 @@ const UserManagement = () => {
           isOpen={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
           onSubmit={handleEditUser}
+          initialUser={selectedUser} // Pass the selected user to initialize the form
+          allUsers={users} // Pass all users for email uniqueness validation
         />
 
         {/* Delete Confirmation Dialog */}
@@ -882,13 +904,13 @@ const UserManagement = () => {
             <DialogHeader>
               <DialogTitle>Konfirmasi Hapus User</DialogTitle>
               <DialogDescription>
-                Apakah Anda yakin ingin menghapus user "{userToDelete?.name}"? 
+                Apakah Anda yakin ingin menghapus user "{userToDelete?.name}"?
                 Tindakan ini tidak dapat dibatalkan.
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 pt-4">
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={handleDeleteUser}
                 disabled={isSubmitting}
                 className="flex-1"
@@ -896,8 +918,8 @@ const UserManagement = () => {
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Hapus User
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setIsDeleteDialogOpen(false)}
                 disabled={isSubmitting}
               >
@@ -912,4 +934,3 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
-
