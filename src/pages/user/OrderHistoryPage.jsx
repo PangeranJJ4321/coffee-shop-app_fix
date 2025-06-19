@@ -12,14 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert'; // Import Alert
 
-import { 
-  Search, 
-  Filter, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Package, 
-  Truck, 
+import {
+  Search,
+  Filter,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Package,
+  Truck,
   Coffee,
   Eye,
   RotateCcw,
@@ -27,7 +27,7 @@ import {
   CreditCard,
   MapPin,
   Phone,
-  User as UserIcon, 
+  User as UserIcon,
   ShoppingBag,
   AlertCircle,
   Star,
@@ -41,7 +41,7 @@ const OrderHistoryPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, api } = useAuth(); // Ambil `api` dari useAuth
   const { addToCart } = useCart(); // Ambil `addToCart`
-  
+
   const [orders, setOrders] = useState([]); // Daftar order yang difetch dari API
   const [filteredOrders, setFilteredOrders] = useState([]); // Hasil filter/sort di frontend
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,32 +55,56 @@ const OrderHistoryPage = () => {
 
   // Order status configurations (sesuai backend OrderStatus enum) Ini itu untuk pembayaran aja
   const orderStatuses = {
-    'PENDING': { 
-      label: 'Menunggu Pembayaran', 
+    'PENDING': {
+      label: 'Menunggu Pembayaran',
       color: 'bg-yellow-100 text-yellow-800',
       icon: Clock,
-      description: 'Pesanan menunggu pembayaran'
+      description: 'Pesanan telah dibuat dan menunggu pembayaran Anda.'
     },
-    'PROCESSING': { 
-      label: 'Diproses', 
+    'PROCESSING': {
+      label: 'Diproses Pembayaran',
+      color: 'bg-orange-100 text-orange-800',
+      icon: CreditCard,
+      description: 'Pembayaran pesanan Anda sedang diproses.'
+    },
+    'CONFIRMED': {
+      label: 'Dikonfirmasi',
+      color: 'bg-indigo-100 text-indigo-800',
+      icon: CheckCircle,
+      description: 'Pembayaran berhasil dikonfirmasi. Pesanan akan segera disiapkan.'
+    },
+    'PREPARING': {
+      label: 'Disiapkan',
       color: 'bg-blue-100 text-blue-800',
-      icon: Package,
-      description: 'Pesanan sedang diproses atau disiapkan'
+      icon: Coffee,
+      description: 'Pesanan Anda sedang disiapkan oleh barista kami.'
     },
-    'COMPLETED': { 
-      label: 'Selesai', 
+    'READY': {
+      label: 'Siap Ambil/Kirim',
+      color: 'bg-purple-100 text-purple-800',
+      icon: ShoppingBag,
+      description: 'Pesanan Anda sudah siap untuk diambil atau akan segera dikirim.'
+    },
+    'DELIVERED': {
+      label: 'Dikirim/Diambil',
+      color: 'bg-teal-100 text-teal-800',
+      icon: Truck,
+      description: 'Pesanan Anda telah berhasil dikirim atau sudah Anda ambil.'
+    },
+    'COMPLETED': {
+      label: 'Selesai',
       color: 'bg-green-100 text-green-800',
       icon: CheckCircle,
-      description: 'Pesanan telah selesai'
+      description: 'Pesanan telah selesai. Terima kasih!'
     },
-    'CANCELLED': { 
-      label: 'Dibatalkan', 
+    'CANCELLED': {
+      label: 'Dibatalkan',
       color: 'bg-red-100 text-red-800',
       icon: XCircle,
-      description: 'Pesanan dibatalkan'
-    }
-   
+      description: 'Pesanan Anda telah dibatalkan.'
+    },
   };
+
 
 
   // Fetch orders dari API
@@ -98,10 +122,10 @@ const OrderHistoryPage = () => {
       if (statusFilter !== 'all') {
         queryParams.append('status', statusFilter.toUpperCase());
       }
-    
+
 
       const response = await api.get(`/orders?${queryParams.toString()}`);
-      setOrders(response.data); 
+      setOrders(response.data);
 
     } catch (err) {
       console.error("Failed to fetch orders:", err.response?.data || err.message);
@@ -140,11 +164,11 @@ const OrderHistoryPage = () => {
     currentFiltered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return new Date(b.ordered_at) - new Date(a.ordered_at); 
+          return new Date(b.ordered_at) - new Date(a.ordered_at);
         case 'oldest':
           return new Date(a.ordered_at) - new Date(b.ordered_at);
         case 'highest':
-          return b.total_price - a.total_price; 
+          return b.total_price - a.total_price;
         case 'lowest':
           return a.total_price - b.total_price;
         default:
@@ -164,22 +188,22 @@ const OrderHistoryPage = () => {
     }
 
     orderToReorder.order_items?.forEach(item => {
-        const coffeeForCart = {
-            id: item.coffee.id, 
-            name: item.coffee.name, 
-            price: item.coffee.price, 
-            image_url: item.coffee.image_url, 
-            description: item.coffee.description, 
-        };
+      const coffeeForCart = {
+        id: item.coffee.id,
+        name: item.coffee.name,
+        price: item.coffee.price,
+        image_url: item.coffee.image_url,
+        description: item.coffee.description,
+      };
 
-        // Varian juga perlu di-map ke format CartContext: { variant_id, name, additional_price, variant_type }
-        const variantsForCart = item.variants.map(v => ({
-            variant_id: v.variant_id,
-            name: v.name,
-            additional_price: v.additional_price,
-            variant_type: v.variant_type // asumsi ada
-        }));
-        addToCart(coffeeForCart, variantsForCart, item.quantity);
+      // Varian juga perlu di-map ke format CartContext: { variant_id, name, additional_price, variant_type }
+      const variantsForCart = item.variants.map(v => ({
+        variant_id: v.variant_id,
+        name: v.name,
+        additional_price: v.additional_price,
+        variant_type: v.variant_type // asumsi ada
+      }));
+      addToCart(coffeeForCart, variantsForCart, item.quantity);
     });
     navigate('/cart');
   };
@@ -191,24 +215,24 @@ const OrderHistoryPage = () => {
     }
     try {
 
-        const orderToRate = orders.find(o => o.id === orderIdToRate);
-        if (!orderToRate || !orderToRate.order_items || orderToRate.order_items.length === 0) {
-            alert("Tidak dapat memberikan rating: Detail order tidak lengkap.");
-            return;
-        }
-        const firstCoffeeIdInOrder = orderToRate.order_items[0].coffee_id; 
-        
-        const response = await api.post(`/ratings/coffee/${firstCoffeeIdInOrder}`, { rating, review });
-        
-        if (response.status === 201) {
-            alert("Rating dan ulasan berhasil dikirim!");
-            fetchOrders(); 
-        } else {
-            alert("Gagal mengirim rating: " + (response.data.detail || "Terjadi kesalahan."));
-        }
+      const orderToRate = orders.find(o => o.id === orderIdToRate);
+      if (!orderToRate || !orderToRate.order_items || orderToRate.order_items.length === 0) {
+        alert("Tidak dapat memberikan rating: Detail order tidak lengkap.");
+        return;
+      }
+      const firstCoffeeIdInOrder = orderToRate.order_items[0].coffee_id;
+
+      const response = await api.post(`/ratings/coffee/${firstCoffeeIdInOrder}`, { rating, review });
+
+      if (response.status === 201) {
+        alert("Rating dan ulasan berhasil dikirim!");
+        fetchOrders();
+      } else {
+        alert("Gagal mengirim rating: " + (response.data.detail || "Terjadi kesalahan."));
+      }
     } catch (err) {
-        console.error("Error submitting rating:", err.response?.data || err.message);
-        alert("Gagal mengirim rating: " + (err.response?.data?.detail || "Terjadi kesalahan jaringan."));
+      console.error("Error submitting rating:", err.response?.data || err.message);
+      alert("Gagal mengirim rating: " + (err.response?.data?.detail || "Terjadi kesalahan jaringan."));
     }
   };
 
@@ -222,19 +246,19 @@ const OrderHistoryPage = () => {
     }
     setIsLoading(true); // Set loading saat membatalkan
     try {
-        // DELETE /orders/{order_id}
-        const response = await api.delete(`/orders/${orderIdToCancel}`);
-        if (response.status === 204) { // Status 204 No Content
-            alert("Pesanan berhasil dibatalkan.");
-            fetchOrders(); // Muat ulang daftar pesanan
-        } else {
-            alert("Gagal membatalkan pesanan.");
-        }
+      // DELETE /orders/{order_id}
+      const response = await api.delete(`/orders/${orderIdToCancel}`);
+      if (response.status === 204) { // Status 204 No Content
+        alert("Pesanan berhasil dibatalkan.");
+        fetchOrders(); // Muat ulang daftar pesanan
+      } else {
+        alert("Gagal membatalkan pesanan.");
+      }
     } catch (err) {
-        console.error("Error canceling order:", err.response?.data || err.message);
-        alert("Gagal membatalkan pesanan: " + (err.response?.data?.detail || "Terjadi kesalahan."));
+      console.error("Error canceling order:", err.response?.data || err.message);
+      alert("Gagal membatalkan pesanan: " + (err.response?.data?.detail || "Terjadi kesalahan."));
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -268,7 +292,7 @@ const OrderHistoryPage = () => {
     const config = orderStatuses[status];
     if (!config) return null; // Handle undefined status
     const Icon = config.icon;
-    
+
     return (
       <Badge className={`${config.color} border-0`}>
         <Icon className="h-3 w-3 mr-1" />
@@ -342,22 +366,22 @@ const OrderHistoryPage = () => {
             {/* Tombol Detail (tetap sama) */}
             <Dialog open={isDialogOpen && selectedOrderDetails?.id === order.id} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={async () => {
                     setIsModalLoading(true);
                     setIsDialogOpen(true);
                     try {
-                        const response = await api.get(`/orders/${order.id}`); // cite: order_service.py
-                        console.log("Fetched order details:", response.data);
-                        setSelectedOrderDetails(response.data);
+                      const response = await api.get(`/orders/${order.id}`); // cite: order_service.py
+                      console.log("Fetched order details:", response.data);
+                      setSelectedOrderDetails(response.data);
                     } catch (err) {
-                        console.error("Failed to fetch order details for modal:", err.response?.data || err.message);
-                        setError(err.response?.data?.detail || "Gagal memuat detail pesanan.");
-                        setIsDialogOpen(false);
+                      console.error("Failed to fetch order details for modal:", err.response?.data || err.message);
+                      setError(err.response?.data?.detail || "Gagal memuat detail pesanan.");
+                      setIsDialogOpen(false);
                     } finally {
-                        setIsModalLoading(false);
+                      setIsModalLoading(false);
                     }
                   }}
                 >
@@ -372,11 +396,11 @@ const OrderHistoryPage = () => {
                     <span className="ml-2">Memuat detail...</span>
                   </div>
                 ) : selectedOrderDetails ? (
-                  <OrderDetailModal 
-                    order={selectedOrderDetails} 
-                    onRate={handleRateOrder} 
-                    onClose={() => setIsDialogOpen(false)} 
-                    onCancel={handleCancelOrder} 
+                  <OrderDetailModal
+                    order={selectedOrderDetails}
+                    onRate={handleRateOrder}
+                    onClose={() => setIsDialogOpen(false)}
+                    onCancel={handleCancelOrder}
                     onReorder={() => handleReorder(selectedOrderDetails)}
                   />
                 ) : (
@@ -384,7 +408,7 @@ const OrderHistoryPage = () => {
                 )}
               </DialogContent>
             </Dialog>
-            
+
             {/* Tombol "Lihat Pembayaran" atau "Lanjutkan Pembayaran" */}
             {(order.status === 'PENDING' || order.status === 'PROCESSING') && (
               <Button
@@ -399,8 +423,8 @@ const OrderHistoryPage = () => {
 
             {/* Tombol Batalkan Pesanan */}
             {order.status === 'PENDING' && (
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 size="sm"
                 onClick={() => handleCancelOrder(order.id)}
                 disabled={isLoading}
@@ -411,7 +435,7 @@ const OrderHistoryPage = () => {
             )}
 
             {order.status === 'COMPLETED' && (
-              <Button 
+              <Button
                 size="sm"
                 onClick={() => handleReorder(order)}
                 disabled={isLoading}
@@ -434,17 +458,17 @@ const OrderHistoryPage = () => {
               </>
             )}
             {order.delivery_method ? ( // Gunakan properti delivery_method baru dari order
-                order.delivery_method === 'delivery' ? (
-                    <> <Truck className="h-3 w-3" /> <span>Diantar</span> </>
-                ) : (
-                    <> <Package className="h-3 w-3" /> <span>Ambil di toko</span> </>
-                )
+              order.delivery_method === 'delivery' ? (
+                <> <Truck className="h-3 w-3" /> <span>Diantar</span> </>
+              ) : (
+                <> <Package className="h-3 w-3" /> <span>Ambil di toko</span> </>
+              )
             ) : ( // Fallback jika properti delivery_method tidak ada
-                order.payment_note && order.payment_note.includes("Delivery Method: delivery") ? (
-                    <> <Truck className="h-3 w-3" /> <span>Diantar</span> </>
-                ) : (
-                    <> <Package className="h-3 w-3" /> <span>Ambil di toko</span> </>
-                )
+              order.payment_note && order.payment_note.includes("Delivery Method: delivery") ? (
+                <> <Truck className="h-3 w-3" /> <span>Diantar</span> </>
+              ) : (
+                <> <Package className="h-3 w-3" /> <span>Ambil di toko</span> </>
+              )
             )}
           </div>
         </div>
@@ -454,7 +478,7 @@ const OrderHistoryPage = () => {
 
   // Komponen OrderDetailModal
   const OrderDetailModal = ({ order, onRate, onClose, onCancel, onReorder }) => {
-    const { api } = useAuth(); 
+    const { api } = useAuth();
     const [rating, setRating] = useState(order.rating || 0); // Asumsi order.rating ada jika sudah dinilai
     const [review, setReview] = useState(order.review || ''); // Asumsi order.review ada jika sudah dinilai
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
@@ -470,27 +494,27 @@ const OrderHistoryPage = () => {
       setRatingModalError('');
       setRatingModalSuccess('');
       try {
-        const coffeeIdToRate = order.order_items[0]?.coffee_id; 
+        const coffeeIdToRate = order.order_items[0]?.coffee_id;
         if (!coffeeIdToRate) {
-            setRatingModalError("Tidak ada kopi untuk dinilai di pesanan ini.");
-            setIsSubmittingReview(false);
-            return;
+          setRatingModalError("Tidak ada kopi untuk dinilai di pesanan ini.");
+          setIsSubmittingReview(false);
+          return;
         }
 
-        const response = await api.post(`/ratings/coffee/${coffeeIdToRate}`, { 
-            rating: rating, 
-            review: review 
+        const response = await api.post(`/ratings/coffee/${coffeeIdToRate}`, {
+          rating: rating,
+          review: review
         });
-        
+
         if (response.status === 201) {
-            setRatingModalSuccess('Ulasan berhasil dikirim!');
-            onRate(order.id, rating, review); // Panggil fungsi dari parent untuk update UI utama
-            setTimeout(() => {
-                setRatingModalSuccess('');
-                onClose(); 
-            }, 1500);
+          setRatingModalSuccess('Ulasan berhasil dikirim!');
+          onRate(order.id, rating, review); // Panggil fungsi dari parent untuk update UI utama
+          setTimeout(() => {
+            setRatingModalSuccess('');
+            onClose();
+          }, 1500);
         } else {
-            setRatingModalError(response.data?.detail || 'Gagal mengirim ulasan.');
+          setRatingModalError(response.data?.detail || 'Gagal mengirim ulasan.');
         }
       } catch (error) {
         console.error("Error submitting review:", error.response?.data || error.message);
@@ -507,10 +531,10 @@ const OrderHistoryPage = () => {
             <Star
               key={star}
               className={`h-5 w-5 ${ // Ukuran bintang lebih besar di modal
-                star <= currentRating 
-                  ? 'fill-yellow-400 text-yellow-400' 
+                star <= currentRating
+                  ? 'fill-yellow-400 text-yellow-400'
                   : 'text-muted-foreground'
-              } ${interactive ? 'cursor-pointer hover:text-yellow-400' : ''}`}
+                } ${interactive ? 'cursor-pointer hover:text-yellow-400' : ''}`}
               onClick={interactive ? () => onStarClick(star) : undefined}
             />
           ))}
@@ -520,6 +544,13 @@ const OrderHistoryPage = () => {
 
     return (
       <div className="space-y-6">
+        <div className='flex flex-col gap-2 text-center sm:text-left'>
+          <h3 className="text-lg font-bold">Detail Pesanan #{order.order_id}</h3>
+          <p className="text-sm text-muted-foreground">
+            Dibuat pada: {formatDateTime(order.ordered_at)}
+          </p>
+        </div>
+
         {/* Status */}
         <div className="flex items-center gap-3">
           {getStatusBadge(order.status)}
@@ -583,7 +614,7 @@ const OrderHistoryPage = () => {
               <span>Subtotal</span>
               <span>{formatPrice(order.total_price)}</span> {/* total_price dari backend */}
             </div>
-            
+
             {/* Discount dan Shipping: Asumsi ini akan dihitung atau didapat dari backend OrderWithItemsResponse */}
             {/* order.discount dan order.shipping tidak ada di OrderResponse. Jika ada, mereka perlu di-fetch */}
             {/* Jika backend tidak mengembalikan diskon/shipping, bagian ini akan kosong */}
@@ -654,7 +685,18 @@ const OrderHistoryPage = () => {
                 <span>Pembayaran berhasil: {formatDateTime(order.paid_at)}</span>
               </div>
             )}
-            {/* Anda bisa menambahkan status lain dari order.status_history jika ada */}
+            {order.status === 'COMPLETED' && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>Pesanan selesai: {formatDateTime(order.updated_at)}</span>
+              </div>
+            )}
+            {order.status === 'CANCELLED' && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span>Pesanan dibatalkan: {formatDateTime(order.updated_at)}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -687,15 +729,15 @@ const OrderHistoryPage = () => {
                     rows={3}
                   />
                 </div>
-                <Button 
+                <Button
                   onClick={handleSubmitReview}
                   disabled={rating === 0 || isSubmittingReview}
                   size="sm"
                 >
                   {isSubmittingReview ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengirim...
-                      </>
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengirim...
+                    </>
                   ) : 'Kirim Ulasan'}
                 </Button>
               </div>
@@ -724,10 +766,10 @@ const OrderHistoryPage = () => {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-          <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-          </Alert>
-          <Button onClick={fetchOrders} className="mt-4">Coba Lagi</Button>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <Button onClick={fetchOrders} className="mt-4">Coba Lagi</Button>
       </div>
     );
   }
@@ -816,7 +858,7 @@ const OrderHistoryPage = () => {
                 {orders.length === 0 ? 'Belum Ada Pesanan' : 'Tidak Ada Hasil'}
               </h2>
               <p className="text-muted-foreground">
-                {orders.length === 0 
+                {orders.length === 0
                   ? 'Anda belum pernah melakukan pesanan. Yuk, mulai pesan kopi favorit!'
                   : 'Coba ubah filter atau kata kunci pencarian Anda'
                 }
