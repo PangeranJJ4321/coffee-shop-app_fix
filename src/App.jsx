@@ -23,7 +23,7 @@ import MenuManagement from './pages/admin/MenuManagement';
 import VariantManagement from './pages/admin/VariantManagement';
 import OrderManagement from './pages/admin/OrderManagement';
 import UserManagement from './pages/admin/UserManagement';
-import AnalyticsPage from './pages/admin/AnalyticsPage';
+// import AnalyticsPage from './pages/admin/AnalyticsPage'; // Dikomen karena belum digunakan
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
@@ -38,6 +38,9 @@ import NotFoundPage from './pages/NotFoundPage';
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
+
+// Protected Route Component
+import ProtectedRoute from './ProtectedRoute';
 
 function App() {
   return (
@@ -60,19 +63,23 @@ function App() {
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
                   
                   {/* User Protected Routes */}
-                  <Route path="/cart" element={<CartPage />} />
-                  <Route path="/checkout" element={<CheckoutPage />} />
-                  <Route path="/payment/:orderId" element={<PaymentPage />} />
-                  <Route path="/orders" element={<OrderHistoryPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route element={<ProtectedRoute allowedRoles={['USER', 'ADMIN']} />}>
+                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/checkout" element={<CheckoutPage />} />
+                    <Route path="/payment/:orderId" element={<PaymentPage />} />
+                    <Route path="/orders" element={<OrderHistoryPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                  </Route>
                   
                   {/* Admin Protected Routes */}
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/admin/menu" element={<MenuManagement />} />
-                  <Route path="/admin/variants" element={<VariantManagement />} />
-                  <Route path="/admin/orders" element={<OrderManagement />} />
-                  <Route path="/admin/users" element={<UserManagement />} />
-                  <Route path="/admin/analytics" element={<AnalyticsPage />} />
+                  <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                    <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/admin/menu" element={<MenuManagement />} />
+                    <Route path="/admin/variants" element={<VariantManagement />} />
+                    <Route path="/admin/orders" element={<OrderManagement />} />
+                    <Route path="/admin/users" element={<UserManagement />} />
+                    {/* <Route path="/admin/analytics" element={<AnalyticsPage />} /> */}
+                  </Route>
                   
                   {/* 404 Catch-all Route */}
                   <Route path="*" element={<NotFoundPage />} />
@@ -88,4 +95,3 @@ function App() {
 }
 
 export default App;
-

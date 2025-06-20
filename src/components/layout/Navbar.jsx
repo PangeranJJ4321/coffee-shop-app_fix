@@ -119,7 +119,7 @@ const Navbar = () => {
         <Users className="h-4 w-4" />
         Kelola User
       </Link>
-      <Link
+      {/* <Link
         to="/admin/analytics"
         className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
           isActivePath('/admin/analytics') 
@@ -130,7 +130,7 @@ const Navbar = () => {
       >
         <BarChart3 className="h-4 w-4" />
         Analytics
-      </Link>
+      </Link> */}
     </>
   );
 
