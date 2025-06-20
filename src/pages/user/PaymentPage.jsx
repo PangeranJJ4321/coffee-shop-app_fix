@@ -35,7 +35,7 @@ const PaymentPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, api } = useAuth();
+  const { isAuthenticated, api, isLoading: isAuthLoading } = useAuth();
 
   const [order, setOrder] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('PENDING');
@@ -106,13 +106,14 @@ const PaymentPage = () => {
   }, [orderId, api, order, updateOrderStatusInLocalStorage]);
 
 
-   useEffect(() => {
+  useEffect(() => {
     if (orderIdRef.current !== orderId) {
       hasInitialized.current = false;
       isCreatingPayment.current = false;
       orderIdRef.current = orderId;
     }
   }, [orderId]);
+
 
   // PERBAIKAN: Fungsi create payment terpisah dengan guard yang lebih ketat
   const createNewPayment = useCallback(async (orderData) => {
@@ -124,7 +125,7 @@ const PaymentPage = () => {
 
     isCreatingPayment.current = true;
     console.log('💳 Creating new payment from Midtrans...');
-    
+
     try {
       const paymentCreateResponse = await api.post('/payments/create', {
         order_id: orderData.id,
@@ -157,7 +158,7 @@ const PaymentPage = () => {
     const loadDataAndHandlePayment = async () => {
       // Mark as initialized immediately
       hasInitialized.current = true;
-      
+
       setIsLoadingInitialData(true);
       setPageError(null);
 
@@ -375,6 +376,8 @@ const PaymentPage = () => {
       minute: '2-digit'
     });
   };
+
+
 
   // Loading state awal halaman
   if (isLoadingInitialData || !order) { // Gunakan isLoadingInitialData
@@ -631,7 +634,7 @@ const PaymentPage = () => {
 
                 {/* Check Payment Button */}
                 <Button
-                  onClick={fetchPaymentStatus} 
+                  onClick={fetchPaymentStatus}
                   disabled={isCheckingPayment}
                   className="w-full"
                   size="lg"

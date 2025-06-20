@@ -31,26 +31,25 @@ import {
   ShoppingBag,
   AlertCircle,
   Star,
-  Loader2, // Untuk spinner
-  Send // Untuk submit rating
+  Loader2, 
+  Send 
 } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea'; // Untuk review
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'; // Jika rating pakai RadioGroup
+import { Textarea } from '@/components/ui/textarea'; 
 
 const OrderHistoryPage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, api } = useAuth(); // Ambil `api` dari useAuth
-  const { addToCart } = useCart(); // Ambil `addToCart`
+  const { isAuthenticated, api } = useAuth(); 
+  const { addToCart } = useCart(); 
 
-  const [orders, setOrders] = useState([]); // Daftar order yang difetch dari API
-  const [filteredOrders, setFilteredOrders] = useState([]); // Hasil filter/sort di frontend
+  const [orders, setOrders] = useState([]); 
+  const [filteredOrders, setFilteredOrders] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'highest', 'lowest'
-  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null); // Detail order untuk modal
+  const [sortBy, setSortBy] = useState('newest'); 
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null); 
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(''); // Untuk pesan error fetching orders
-  const [isModalLoading, setIsModalLoading] = useState(false); // Untuk loading modal detail
+  const [error, setError] = useState(''); 
+  const [isModalLoading, setIsModalLoading] = useState(false); 
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State untuk mengontrol dialog
 
   // Order status configurations (sesuai backend OrderStatus enum) Ini itu untuk pembayaran aja
@@ -181,7 +180,6 @@ const OrderHistoryPage = () => {
 
 
   const handleReorder = (orderToReorder) => {
-    console.log(orderToReorder);
     if (!isAuthenticated) {
       navigate('/login');
       return;

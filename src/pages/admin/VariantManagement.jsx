@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'; 
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,13 +12,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Settings, 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Settings,
+  Search,
+  Filter,
+  Plus,
+  Edit,
+  Trash2,
   MoreHorizontal,
   Coffee,
   Tag,
@@ -31,573 +32,633 @@ import {
 } from 'lucide-react';
 
 const VariantManagement = () => {
-  const { user: currentUser } = useAuth();
-  
-  const [variants, setVariants] = useState([]);
-  const [filteredVariants, setFilteredVariants] = useState([]);
+  const { api } = useAuth(); 
+
+  const [variantTypes, setVariantTypes] = useState([]); 
+  const [allVariants, setAllVariants] = useState([]); 
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all'); 
+  const [statusFilter, setStatusFilter] = useState('all'); 
   const [sortBy, setSortBy] = useState('newest');
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [variantToDelete, setVariantToDelete] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'SIZE',
-    description: '',
-    priceModifier: 0,
-    status: 'ACTIVE',
-    options: []
-  });
-  const [formErrors, setFormErrors] = useState({});
+
+  // Untuk dialog Add/Edit Tipe Varian
+  const [selectedVariantType, setSelectedVariantType] = useState(null); 
+  const [isVariantTypeAddDialogOpen, setIsVariantTypeAddDialogOpen] = useState(false);
+  const [isVariantTypeEditDialogOpen, setIsVariantTypeEditDialogOpen] = useState(false);
+  const [isVariantTypeDeleteDialogOpen, setIsVariantTypeDeleteDialogOpen] = useState(false);
+  const [variantTypeToDelete, setVariantTypeToDelete] = useState(null);
+
+  // Untuk dialog Add/Edit Varian (opsi individual)
+  const [selectedVariantOption, setSelectedVariantOption] = useState(null); 
+  const [isVariantOptionAddDialogOpen, setIsVariantOptionAddDialogOpen] = useState(false);
+  const [isVariantOptionEditDialogOpen, setIsVariantOptionEditDialogOpen] = useState(false);
+  const [isVariantOptionDeleteDialogOpen, setIsVariantOptionDeleteDialogOpen] = useState(false);
+  const [variantOptionToDelete, setVariantOptionToDelete] = useState(null);
+
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newOption, setNewOption] = useState({ name: '', priceModifier: 0 });
 
-  // Mock variant data
-  const mockVariants = [
-    {
-      id: 1,
-      name: 'Size',
-      type: 'SIZE',
-      description: 'Ukuran minuman kopi',
-      priceModifier: 0,
-      status: 'ACTIVE',
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      options: [
-        { id: 1, name: 'Small', priceModifier: 0 },
-        { id: 2, name: 'Medium', priceModifier: 5000 },
-        { id: 3, name: 'Large', priceModifier: 10000 }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Sugar Level',
-      type: 'SUGAR',
-      description: 'Tingkat kemanisan',
-      priceModifier: 0,
-      status: 'ACTIVE',
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      options: [
-        { id: 4, name: 'No Sugar', priceModifier: 0 },
-        { id: 5, name: 'Less Sugar', priceModifier: 0 },
-        { id: 6, name: 'Normal Sugar', priceModifier: 0 },
-        { id: 7, name: 'Extra Sugar', priceModifier: 0 }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Milk Type',
-      type: 'MILK',
-      description: 'Jenis susu untuk kopi',
-      priceModifier: 0,
-      status: 'ACTIVE',
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      options: [
-        { id: 8, name: 'Regular Milk', priceModifier: 0 },
-        { id: 9, name: 'Oat Milk', priceModifier: 8000 },
-        { id: 10, name: 'Almond Milk', priceModifier: 10000 },
-        { id: 11, name: 'Soy Milk', priceModifier: 6000 }
-      ]
-    },
-    {
-      id: 4,
-      name: 'Temperature',
-      type: 'TEMPERATURE',
-      description: 'Suhu minuman',
-      priceModifier: 0,
-      status: 'ACTIVE',
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      options: [
-        { id: 12, name: 'Hot', priceModifier: 0 },
-        { id: 13, name: 'Iced', priceModifier: 0 }
-      ]
-    },
-    {
-      id: 5,
-      name: 'Extra Shot',
-      type: 'ADDON',
-      description: 'Tambahan shot espresso',
-      priceModifier: 0,
-      status: 'INACTIVE',
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      options: [
-        { id: 14, name: 'Single Shot', priceModifier: 8000 },
-        { id: 15, name: 'Double Shot', priceModifier: 15000 }
-      ]
-    }
-  ];
 
-  const variantTypes = [
-    { value: 'SIZE', label: 'Size', color: 'bg-blue-100 text-blue-800' },
-    { value: 'SUGAR', label: 'Sugar Level', color: 'bg-green-100 text-green-800' },
-    { value: 'MILK', label: 'Milk Type', color: 'bg-purple-100 text-purple-800' },
-    { value: 'TEMPERATURE', label: 'Temperature', color: 'bg-orange-100 text-orange-800' },
-    { value: 'ADDON', label: 'Add-on', color: 'bg-pink-100 text-pink-800' }
-  ];
-
-  const statuses = [
+  const statuses = useMemo(() => [
     { value: 'ACTIVE', label: 'Aktif', color: 'bg-green-100 text-green-800' },
     { value: 'INACTIVE', label: 'Tidak Aktif', color: 'bg-red-100 text-red-800' }
+  ], []);
+
+  const variantTypeColor = [
+    { value: 'Size', label: 'Size', color: 'bg-blue-100 text-blue-800' },
+    { value: 'Sugar Level', label: 'Sugar Level', color: 'bg-green-100 text-green-800' },
+    { value: 'Milk Type', label: 'Milk Type', color: 'bg-purple-100 text-purple-800' },
+    { value: 'Temperature', label: 'Temperature', color: 'bg-orange-100 text-orange-800' },
+    { value: 'Add-on', label: 'Add-on', color: 'bg-pink-100 text-pink-800' }
   ];
 
-  useEffect(() => {
-    // Simulate API call
-    setIsLoading(true);
-    setTimeout(() => {
-      setVariants(mockVariants);
-      setFilteredVariants(mockVariants);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
-
-  useEffect(() => {
-    let filtered = [...variants];
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(variant =>
-        variant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        variant.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        variant.options.some(option => 
-          option.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      );
-    }
-
-    // Filter by type
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(variant => variant.type === typeFilter);
-    }
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(variant => variant.status === statusFilter);
-    }
-
-    // Sort variants
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'type':
-          return a.type.localeCompare(b.type);
-        case 'options':
-          return b.options.length - a.options.length;
-        default:
-          return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-    });
-
-    setFilteredVariants(filtered);
-  }, [variants, searchTerm, typeFilter, statusFilter, sortBy]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const handleOptionChange = (e) => {
-    const { name, value } = e.target;
-    setNewOption(prev => ({
-      ...prev,
-      [name]: name === 'priceModifier' ? parseInt(value) || 0 : value
-    }));
-  };
-
-  const addOption = () => {
-    if (!newOption.name.trim()) return;
-    
-    setFormData(prev => ({
-      ...prev,
-      options: [...prev.options, { 
-        id: Date.now(), 
-        name: newOption.name, 
-        priceModifier: newOption.priceModifier 
-      }]
-    }));
-    setNewOption({ name: '', priceModifier: 0 });
-  };
-
-  const removeOption = (optionId) => {
-    setFormData(prev => ({
-      ...prev,
-      options: prev.options.filter(option => option.id !== optionId)
-    }));
-  };
-
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.name.trim()) {
-      errors.name = 'Nama variant wajib diisi';
-    }
-
-    if (!formData.type) {
-      errors.type = 'Tipe variant wajib dipilih';
-    }
-
-    if (formData.options.length === 0) {
-      errors.options = 'Minimal harus ada satu opsi';
-    }
-
-    return errors;
-  };
-
-  const handleAddVariant = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const newVariant = {
-        id: Date.now(),
-        ...formData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      setVariants(prev => [newVariant, ...prev]);
-      setIsAddDialogOpen(false);
-      setFormData({
-        name: '',
-        type: 'SIZE',
-        description: '',
-        priceModifier: 0,
-        status: 'ACTIVE',
-        options: []
-      });
-      setFormErrors({});
-      
-    } catch (error) {
-      setFormErrors({ general: 'Gagal menambahkan variant' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEditVariant = async (e) => {
-    e.preventDefault();
-    
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setVariants(prev => prev.map(variant =>
-        variant.id === selectedVariant.id
-          ? { ...variant, ...formData, updatedAt: new Date().toISOString() }
-          : variant
-      ));
-
-      setIsEditDialogOpen(false);
-      setSelectedVariant(null);
-      setFormData({
-        name: '',
-        type: 'SIZE',
-        description: '',
-        priceModifier: 0,
-        status: 'ACTIVE',
-        options: []
-      });
-      setFormErrors({});
-      
-    } catch (error) {
-      setFormErrors({ general: 'Gagal mengupdate variant' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteVariant = async () => {
-    if (!variantToDelete) return;
-
-    setIsSubmitting(true);
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setVariants(prev => prev.filter(variant => variant.id !== variantToDelete.id));
-      setIsDeleteDialogOpen(false);
-      setVariantToDelete(null);
-      
-    } catch (error) {
-      alert('Gagal menghapus variant');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const openEditDialog = (variant) => {
-    setSelectedVariant(variant);
-    setFormData({
-      name: variant.name,
-      type: variant.type,
-      description: variant.description,
-      priceModifier: variant.priceModifier,
-      status: variant.status,
-      options: [...variant.options]
-    });
-    setFormErrors({});
-    setIsEditDialogOpen(true);
-  };
-
-  const openDeleteDialog = (variant) => {
-    setVariantToDelete(variant);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(price);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getTypeBadge = (type) => {
-    const typeConfig = variantTypes.find(t => t.value === type);
+  const variantTypesBadge= (name) => {
+    const typeConfig = variantTypeColor.find(t => t.value === name);
+    if (!typeConfig) return null;
     return (
       <Badge className={`${typeConfig.color} border-0`}>
         <Tag className="h-3 w-3 mr-1" />
         {typeConfig.label}
       </Badge>
     );
-  };
+  }
 
-  const getStatusBadge = (status) => {
-    const statusConfig = statuses.find(s => s.value === status);
+
+
+  const memoizedVariantTypes = useMemo(() => {
+    return variantTypes.map(type => ({
+      value: type.id,
+      label: type.name
+    }));
+  }, [variantTypes]);
+
+
+
+  // Filtered Variant Types (yang akan ditampilkan di tabel utama)
+  const filteredVariantTypes = useMemo(() => {
+    let filtered = [...variantTypes];
+
+    if (searchTerm && searchTerm.trim() !== "") {
+      const lowercasedSearch = searchTerm.toLowerCase();
+      filtered = filtered.filter(type =>
+        (type.name || "").toLowerCase().includes(lowercasedSearch) ||
+        (type.description || "").toLowerCase().includes(lowercasedSearch) ||
+        // Juga cari di nama varian yang terkait dengan tipe ini
+        allVariants.some(variant =>
+          variant.variant_type_id === type.id && (variant.name || "").toLowerCase().includes(lowercasedSearch)
+        )
+      );
+    }
+
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(type => type.id === typeFilter);
+    }
+
+
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(type => {
+        const typeVariants = allVariants.filter(variant => variant.variant_type_id === type.id);
+        if (statusFilter === 'ACTIVE') {
+          return typeVariants.some(variant => variant.status === 'ACTIVE');
+        } else {
+          return typeVariants.some(variant => variant.status === 'INACTIVE');
+        }
+      });
+    }
+
+
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.created_at) - new Date(a.created_at);
+        case 'oldest':
+          return new Date(a.created_at) - new Date(b.created_at);
+        case 'name':
+          return (a.name || "").localeCompare(b.name || "");
+        // 'options' tidak lagi menjadi sortable di level tipe varian
+        default:
+          return new Date(b.created_at) - new Date(a.created_at);
+      }
+    });
+
+    return filtered;
+  }, [variantTypes, searchTerm, typeFilter, statusFilter, allVariants, sortBy]);
+
+
+  // Fetch data (variants and variant types) from API
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const typesResponse = await api.get('/admin/menu-management/variant-types');
+      setVariantTypes(typesResponse.data); 
+
+      const variantsResponse = await api.get('/admin/menu-management/variants');
+      setAllVariants(variantsResponse.data.map(v => ({ 
+          ...v,
+          status: v.is_available ? 'ACTIVE' : 'INACTIVE' 
+      })));
+      console.log("Fetched Variant Types:", typesResponse.data);
+      console.log("Fetched Variants:", variantsResponse.data);
+    } catch (error) {
+      console.error("Failed to fetch variant data:", error.response?.data || error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+
+  const formatPrice = useCallback((price) => {
+    if (typeof price !== 'number') return 'Rp 0';
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(price);
+  }, []);
+
+  const formatDate = useCallback((dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleString('id-ID', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return dateString;
+    }
+  }, []);
+
+  const getTypeBadge = useCallback((typeId) => {
+    const typeConfig = variantTypes.find(t => t.id === typeId);
+    if (!typeConfig) return null;
+    const colors = {
+      'SIZE': 'bg-blue-100 text-blue-800',
+      'SUGAR': 'bg-green-100 text-green-800',
+      'MILK': 'bg-purple-100 text-purple-800',
+      'TEMPERATURE': 'bg-orange-100 text-orange-800',
+      'ADDON': 'bg-pink-100 text-pink-800',
+    };
     return (
-      <Badge className={`${statusConfig.color} border-0`}>
-        {status === 'ACTIVE' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-        {statusConfig.label}
+      <Badge className={`${colors[typeConfig.name] || 'bg-gray-100 text-gray-800'} border-0`}>
+        <Tag className="h-3 w-3 mr-1" />
+        {typeConfig.name}
       </Badge>
     );
-  };
+  }, [variantTypes]);
 
-  const VariantFormDialog = ({ isEdit = false, isOpen, onOpenChange, onSubmit }) => (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? 'Edit Variant' : 'Tambah Variant Baru'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit ? 'Update informasi variant' : 'Masukkan informasi variant baru'}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={onSubmit} className="space-y-6">
-          {formErrors.general && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{formErrors.general}</AlertDescription>
-            </Alert>
-          )}
+  const getStatusBadge = useCallback((status) => {
+    const statusConfig = statuses.find(s => s.value === status);
+    return (
+      <Badge className={`${statusConfig?.color || 'bg-gray-100 text-gray-800'} border-0`}>
+        {status === 'ACTIVE' ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+        {statusConfig?.label || status}
+      </Badge>
+    );
+  }, [statuses]);
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+  const handleAddVariantType = useCallback(async (formDataFromDialog, setDialogErrors) => {
+      setIsSubmitting(true);
+      try {
+          const payload = {
+              name: formDataFromDialog.name,
+              description: formDataFromDialog.description,
+              is_required: formDataFromDialog.is_required,
+          };
+          const response = await api.post('/admin/menu-management/variant-types', payload);
+          console.log('Variant type added:', response.data);
+          fetchData(); 
+          setIsVariantTypeAddDialogOpen(false);
+          setDialogErrors({});
+      } catch (error) {
+          console.error("Failed to add variant type:", error.response?.data || error.message);
+          setDialogErrors({ general: error.response?.data?.detail || 'Gagal menambahkan tipe variant' });
+      } finally {
+          setIsSubmitting(false);
+      }
+  }, [api, fetchData]);
+
+  const handleEditVariantType = useCallback(async (formDataFromDialog, setDialogErrors) => {
+      if (!selectedVariantType) return;
+      setIsSubmitting(true);
+      try {
+          const payload = {
+              name: formDataFromDialog.name,
+              description: formDataFromDialog.description,
+              is_required: formDataFromDialog.is_required,
+          };
+          const response = await api.put(`/admin/menu-management/variant-types/${selectedVariantType.id}`, payload);
+          console.log('Variant type updated:', response.data);
+          fetchData(); 
+          setIsVariantTypeEditDialogOpen(false);
+          setSelectedVariantType(null);
+          setDialogErrors({});
+      } catch (error) {
+          console.error("Failed to edit variant type:", error.response?.data || error.message);
+          setDialogErrors({ general: error.response?.data?.detail || 'Gagal mengupdate tipe variant' });
+      } finally {
+          setIsSubmitting(false);
+      }
+  }, [api, fetchData, selectedVariantType]);
+
+  const handleDeleteVariantType = useCallback(async () => {
+      if (!variantTypeToDelete) return;
+      setIsSubmitting(true);
+      try {
+          await api.delete(`/admin/menu-management/variant-types/${variantTypeToDelete.id}`);
+          console.log('Variant type deleted:', variantTypeToDelete.id);
+          fetchData(); 
+          setIsVariantTypeDeleteDialogOpen(false);
+          setVariantTypeToDelete(null);
+      } catch (error) {
+          console.error("Failed to delete variant type:", error.response?.data || error.message);
+          alert('Gagal menghapus tipe variant: ' + (error.response?.data?.detail || error.message));
+      } finally {
+          setIsSubmitting(false);
+      }
+  }, [api, fetchData, variantTypeToDelete]);
+
+
+  const openVariantTypeEditDialog = useCallback((type) => {
+    setSelectedVariantType(type);
+    setIsVariantTypeEditDialogOpen(true);
+  }, []);
+
+  const openVariantTypeDeleteDialog = useCallback((type) => {
+    setVariantTypeToDelete(type);
+    setIsVariantTypeDeleteDialogOpen(true);
+  }, []);
+
+
+  const handleAddVariantOption = useCallback(async (formDataFromDialog, setDialogErrors) => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        name: formDataFromDialog.name,
+        additional_price: formDataFromDialog.additional_price,
+        is_available: formDataFromDialog.status === 'ACTIVE',
+        variant_type_id: formDataFromDialog.variant_type_id, 
+      };
+      const response = await api.post('/admin/menu-management/variants', payload);
+      console.log('Variant option added:', response.data);
+      fetchData(); // Refresh all data
+      setIsVariantOptionAddDialogOpen(false);
+      setDialogErrors({});
+    } catch (error) {
+      console.error("Failed to add variant option:", error.response?.data || error.message);
+      setDialogErrors({ general: error.response?.data?.detail || 'Gagal menambahkan opsi variant' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [api, fetchData]);
+
+  const handleEditVariantOption = useCallback(async (formDataFromDialog, setDialogErrors) => {
+    if (!selectedVariantOption) return;
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        name: formDataFromDialog.name,
+        additional_price: formDataFromDialog.additional_price,
+        is_available: formDataFromDialog.status === 'ACTIVE',
+        variant_type_id: formDataFromDialog.variant_type_id,
+      };
+      const response = await api.put(`/admin/menu-management/variants/${selectedVariantOption.id}`, payload);
+      console.log('Variant option updated:', response.data);
+      fetchData(); // Refresh all data
+      setIsVariantOptionEditDialogOpen(false);
+      setSelectedVariantOption(null);
+      setDialogErrors({});
+    } catch (error) {
+      console.error("Failed to edit variant option:", error.response?.data || error.message);
+      setDialogErrors({ general: error.response?.data?.detail || 'Gagal mengupdate opsi variant' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [api, fetchData, selectedVariantOption]);
+
+  const handleDeleteVariantOption = useCallback(async () => {
+    if (!variantOptionToDelete) return;
+    setIsSubmitting(true);
+    try {
+      await api.delete(`/admin/menu-management/variants/${variantOptionToDelete.id}`);
+      console.log('Variant option deleted:', variantOptionToDelete.id);
+      fetchData(); // Refresh all data
+      setIsVariantOptionDeleteDialogOpen(false);
+      setVariantOptionToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete variant option:", error.response?.data || error.message);
+      alert('Gagal menghapus opsi variant: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [api, fetchData, variantOptionToDelete]);
+
+  const openVariantOptionAddDialog = useCallback((variantTypeId) => {
+    // Set default variant type for new option
+    setSelectedVariantType(variantTypes.find(type => type.id === variantTypeId)); // Set selectedVariantType to pass to dialog
+    setSelectedVariantOption(null); // No initial option for adding
+    setIsVariantOptionAddDialogOpen(true);
+  }, [variantTypes]);
+
+  const openVariantOptionEditDialog = useCallback((option) => {
+    setSelectedVariantOption(option); // Set the full option object for editing
+    setSelectedVariantType(variantTypes.find(type => type.id === option.variant_type_id)); // Set its parent type
+    setIsVariantOptionEditDialogOpen(true);
+  }, [variantTypes]);
+
+  const openVariantOptionDeleteDialog = useCallback((option) => {
+    setVariantOptionToDelete(option);
+    setIsVariantOptionDeleteDialogOpen(true);
+  }, []);
+
+
+  // --- KOMPONEN DIALOG FORM UNTUK TIPE VARIAN ---
+  const VariantTypeFormDialog = React.memo(({ isEdit = false, isOpen, onOpenChange, onSubmit, initialVariantType = null }) => {
+    const [formData, setFormData] = useState(() => ({
+      name: initialVariantType?.name || '',
+      description: initialVariantType?.description || '',
+      is_required: initialVariantType?.is_required || false,
+    }));
+    const [formErrors, setFormErrors] = useState({});
+    const didOpenRef = useRef(false);
+
+    useEffect(() => {
+      if (isOpen) {
+        if (!didOpenRef.current || (initialVariantType && initialVariantType.id !== formData.id)) {
+          setFormData({
+            name: initialVariantType?.name || '',
+            description: initialVariantType?.description || '',
+            is_required: initialVariantType?.is_required || false,
+          });
+          setFormErrors({});
+          didOpenRef.current = true;
+        }
+      } else {
+        didOpenRef.current = false;
+      }
+    }, [isOpen, initialVariantType, formData.id]);
+
+    const handleInputChange = useCallback((e) => {
+      const { name, value, type, checked } = e.target; // Added checked
+      setFormData(prev => {
+        let newValue = type === 'checkbox' ? checked : value; // Handle checkbox
+        setFormErrors(currentErrors => {
+          const newErrors = { ...currentErrors };
+          delete newErrors[name];
+          return newErrors;
+        });
+        return { ...prev, [name]: newValue };
+      });
+    }, []);
+
+    const validateForm = useCallback(() => {
+      const errors = {};
+      if (!formData.name.trim()) { errors.name = 'Nama tipe variant wajib diisi'; }
+      return errors;
+    }, [formData]);
+
+    const handleSubmit = useCallback(async (e) => {
+      e.preventDefault();
+      const errors = validateForm();
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return;
+      }
+      await onSubmit(formData, setFormErrors);
+    }, [formData, validateForm, onSubmit]);
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? 'Edit Tipe Variant' : 'Tambah Tipe Variant Baru'}</DialogTitle>
+            <DialogDescription>{isEdit ? 'Update informasi tipe variant' : 'Masukkan informasi tipe variant baru'}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {formErrors.general && (
+              <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{formErrors.general}</AlertDescription></Alert>
+            )}
             <div className="space-y-2">
-              <Label htmlFor="name">Nama Variant *</Label>
+              <Label htmlFor="name">Nama Tipe Variant *</Label>
+              <Input id="name" name="name" value={formData.name} onChange={handleInputChange} className={formErrors.name ? 'border-red-500' : ''} />
+              {formErrors.name && (<p className="text-sm text-red-500">{formErrors.name}</p>)}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Deskripsi</Label>
+              <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} placeholder="Deskripsi tipe variant..." rows={3} />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="is_required" name="is_required" checked={formData.is_required} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_required: checked }))} />
+              <Label htmlFor="is_required" className="text-sm">Wajib dipilih saat memilih menu</Label>
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" disabled={isSubmitting} className="flex-1">
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEdit ? 'Update' : 'Tambah'} Tipe Variant
+              </Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Batal</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  });
+
+  const VariantOptionFormDialog = React.memo(({ isEdit = false, isOpen, onOpenChange, onSubmit, initialVariantOption = null, availableVariantTypes, statuses, formatPrice }) => {
+    const [formData, setFormData] = useState(() => ({
+      name: initialVariantOption?.name || '',
+      additional_price: initialVariantOption?.additional_price || 0,
+      description: initialVariantOption?.description || '',
+      status: initialVariantOption?.is_available ? 'ACTIVE' : 'INACTIVE',
+      variant_type_id: initialVariantOption?.variant_type_id || (availableVariantTypes.length > 0 ? availableVariantTypes[0].id : ''), 
+    }));
+    const [formErrors, setFormErrors] = useState({});
+    const didOpenRef = useRef(false);
+
+    useEffect(() => {
+      if (isOpen) {
+        if (!didOpenRef.current || (initialVariantOption && initialVariantOption.id !== formData.id)) {
+          setFormData({
+            name: initialVariantOption?.name || '',
+            additional_price: initialVariantOption?.additional_price || 0,
+            description: initialVariantOption?.description || '',
+            status: initialVariantOption?.is_available ? 'ACTIVE' : 'INACTIVE',
+            variant_type_id: initialVariantOption?.variant_type_id || (availableVariantTypes.length > 0 ? availableVariantTypes[0].id : ''),
+          });
+          setFormErrors({});
+          didOpenRef.current = true;
+        }
+      } else {
+        didOpenRef.current = false;
+      }
+    }, [isOpen, initialVariantOption, availableVariantTypes, formData.id]);
+
+
+    const handleInputChange = useCallback((e) => {
+      const { name, value, type } = e.target;
+      setFormData(prev => {
+        let newValue = type === 'number' ? parseInt(value) || 0 : value;
+        setFormErrors(currentErrors => {
+          const newErrors = { ...currentErrors };
+          delete newErrors[name];
+          return newErrors;
+        });
+        return { ...prev, [name]: newValue };
+      });
+    }, []);
+
+    const validateForm = useCallback(() => {
+      const errors = {};
+      if (!formData.name.trim()) { errors.name = 'Nama opsi variant wajib diisi'; }
+      if (!formData.variant_type_id) { errors.variant_type_id = 'Tipe variant wajib dipilih'; } // Corrected field name
+      if (formData.additional_price < 0) { errors.additional_price = 'Harga tambahan tidak bisa negatif'; }
+      return errors;
+    }, [formData]);
+
+
+    const handleSubmit = useCallback(async (e) => {
+      e.preventDefault();
+      const errors = validateForm();
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return;
+      }
+      await onSubmit(formData, setFormErrors);
+    }, [formData, validateForm, onSubmit]);
+
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {isEdit ? 'Edit Opsi Variant' : 'Tambah Opsi Variant Baru'}
+            </DialogTitle>
+            <DialogDescription>
+              {isEdit ? 'Update informasi opsi variant' : 'Masukkan informasi opsi variant baru'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {formErrors.general && (
+              <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{formErrors.general}</AlertDescription></Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Nama Opsi Variant *</Label>
               <Input
                 id="name"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                placeholder="e.g., Size, Sugar Level"
+                placeholder="e.g., Small, No Sugar"
                 className={formErrors.name ? 'border-red-500' : ''}
               />
-              {formErrors.name && (
-                <p className="text-sm text-red-500">{formErrors.name}</p>
-              )}
+              {formErrors.name && (<p className="text-sm text-red-500">{formErrors.name}</p>)}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="type">Tipe Variant *</Label>
+              <Label htmlFor="variant_type_id">Tipe Variant *</Label> {/* Corrected label */}
               <Select
-                value={formData.type}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
+                value={formData.variant_type_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, variant_type_id: value }))} 
               >
-                <SelectTrigger className={formErrors.type ? 'border-red-500' : ''}>
-                  <SelectValue />
+                <SelectTrigger className={formErrors.variant_type_id ? 'border-red-500' : ''}> 
+                  <SelectValue placeholder="Pilih Tipe Variant" />
                 </SelectTrigger>
                 <SelectContent>
-                  {variantTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
+                  {availableVariantTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {formErrors.type && (
-                <p className="text-sm text-red-500">{formErrors.type}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Deskripsi</Label>
-            <Textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Deskripsi variant..."
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Status *</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {statuses.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Options Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-medium">Opsi Variant *</Label>
-              {formErrors.options && (
-                <p className="text-sm text-red-500">{formErrors.options}</p>
+              {formErrors.variant_type_id && (
+                <p className="text-sm text-red-500">{formErrors.variant_type_id}</p>
               )}
             </div>
 
-            {/* Add New Option */}
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <Label className="text-sm font-medium mb-3 block">Tambah Opsi Baru</Label>
-              <div className="flex gap-2">
-                <Input
-                  name="name"
-                  value={newOption.name}
-                  onChange={handleOptionChange}
-                  placeholder="Nama opsi (e.g., Small, Medium)"
-                  className="flex-1"
-                />
-                <Input
-                  name="priceModifier"
-                  type="number"
-                  value={newOption.priceModifier}
-                  onChange={handleOptionChange}
-                  placeholder="Tambahan harga"
-                  className="w-32"
-                />
-                <Button type="button" onClick={addOption} size="sm">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="additional_price">Harga Tambahan</Label>
+              <Input
+                id="additional_price"
+                name="additional_price"
+                type="number"
+                value={formData.additional_price}
+                onChange={handleInputChange}
+                placeholder="0"
+                className={formErrors.additional_price ? 'border-red-500' : ''}
+              />
+              {formErrors.additional_price && (
+                <p className="text-sm text-red-500">{formErrors.additional_price}</p>
+              )}
             </div>
 
-            {/* Options List */}
-            {formData.options.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Daftar Opsi</Label>
-                <div className="space-y-2">
-                  {formData.options.map((option) => (
-                    <div key={option.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <p className="font-medium">{option.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {option.priceModifier === 0 ? 'Gratis' : `+${formatPrice(option.priceModifier)}`}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeOption(option.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Deskripsi (Opsional)</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Deskripsi singkat opsi variant..."
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status *</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
                   ))}
-                </div>
-              </div>
-            )}
-          </div>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="flex gap-2 pt-4">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'Update' : 'Tambah'} Variant
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Batal
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" disabled={isSubmitting} className="flex-1">
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEdit ? 'Update' : 'Tambah'} Opsi Variant
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Batal
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  });
+
 
   if (isLoading) {
     return (
@@ -618,14 +679,14 @@ const VariantManagement = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Manajemen Variant</h1>
+            <h1 className="text-3xl font-bold">Manajemen Variant & Opsi</h1>
             <p className="text-muted-foreground">
-              Kelola variant dan opsi untuk menu kopi
+              Kelola tipe variant dan opsi individual untuk menu kopi
             </p>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => setIsVariantTypeAddDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Tambah Variant
+            Tambah Tipe Variant
           </Button>
         </div>
 
@@ -638,8 +699,8 @@ const VariantManagement = () => {
                   <Settings className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{variants.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Variant</p>
+                  <p className="text-2xl font-bold">{allVariants.length}</p>
+                  <p className="text-sm text-muted-foreground">Total Opsi</p>
                 </div>
               </div>
             </CardContent>
@@ -653,9 +714,9 @@ const VariantManagement = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {variants.filter(v => v.status === 'ACTIVE').length}
+                    {allVariants.filter(v => v.status === 'ACTIVE').length}
                   </p>
-                  <p className="text-sm text-muted-foreground">Variant Aktif</p>
+                  <p className="text-sm text-muted-foreground">Opsi Aktif</p>
                 </div>
               </div>
             </CardContent>
@@ -681,13 +742,13 @@ const VariantManagement = () => {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Package className="h-6 w-6 text-yellow-600" />
+                  <DollarSign className="h-6 w-6 text-yellow-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {variants.reduce((total, variant) => total + variant.options.length, 0)}
+                    {allVariants.filter(v => v.additional_price > 0).length}
                   </p>
-                  <p className="text-sm text-muted-foreground">Total Opsi</p>
+                  <p className="text-sm text-muted-foreground">Opsi Berbayar</p>
                 </div>
               </div>
             </CardContent>
@@ -719,7 +780,7 @@ const VariantManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Tipe</SelectItem>
-                  {variantTypes.map((type) => (
+                  {memoizedVariantTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
                     </SelectItem>
@@ -752,7 +813,8 @@ const VariantManagement = () => {
                   <SelectItem value="oldest">Terlama</SelectItem>
                   <SelectItem value="name">Nama A-Z</SelectItem>
                   <SelectItem value="type">Tipe</SelectItem>
-                  <SelectItem value="options">Opsi Terbanyak</SelectItem>
+                  <SelectItem value="price_high">Harga Tertinggi</SelectItem>
+                  <SelectItem value="price_low">Harga Terendah</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -760,7 +822,7 @@ const VariantManagement = () => {
             {/* Results Info */}
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>
-                Menampilkan {filteredVariants.length} dari {variants.length} variant
+                Menampilkan {filteredVariantTypes.length} dari {variantTypes.length} tipe variant
                 {searchTerm && ` untuk "${searchTerm}"`}
               </span>
               {searchTerm && (
@@ -776,16 +838,16 @@ const VariantManagement = () => {
           </CardContent>
         </Card>
 
-        {/* Variants Table */}
+        {/* Variant Types Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Daftar Variant</CardTitle>
+            <CardTitle>Daftar Tipe Variant</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredVariants.length === 0 ? (
+            {filteredVariantTypes.length === 0 ? (
               <div className="text-center py-8">
                 <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Tidak ada variant ditemukan</h3>
+                <h3 className="text-lg font-medium mb-2">Tidak ada tipe variant ditemukan</h3>
                 <p className="text-muted-foreground mb-4">
                   Coba ubah filter atau kata kunci pencarian Anda
                 </p>
@@ -802,57 +864,92 @@ const VariantManagement = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Variant</TableHead>
+                      <TableHead>Tipe Variant</TableHead>
+                      <TableHead>Deskripsi</TableHead>
                       <TableHead>Tipe</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead>Opsi</TableHead>
+                      <TableHead>Wajib</TableHead>
                       <TableHead>Dibuat</TableHead>
                       <TableHead>Diupdate</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredVariants.map((variant) => (
-                      <TableRow key={variant.id}>
+                    {filteredVariantTypes.map((type) => (
+                      <TableRow key={type.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{variant.name}</p>
-                            {variant.description && (
-                              <p className="text-sm text-muted-foreground">{variant.description}</p>
-                            )}
+                            <p className="font-medium">{type.name}</p>
+                            <p className="text-sm text-muted-foreground">ID: {type.id.slice(0, 8)}...</p>
                           </div>
                         </TableCell>
                         <TableCell>
-                          {getTypeBadge(variant.type)}
+                          {type.description || '-'}
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(variant.status)}
+                          {variantTypesBadge(type.name)}
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <p className="text-sm font-medium">{variant.options.length} opsi</p>
-                            <div className="flex flex-wrap gap-1">
-                              {variant.options.slice(0, 3).map((option) => (
-                                <Badge key={option.id} variant="outline" className="text-xs">
-                                  {option.name}
-                                </Badge>
+                            {allVariants
+                              .filter(variant => variant.variant_type_id === type.id)
+                              .map(option => (
+                                <div key={option.id} className="flex items-center gap-2">
+                                  <Badge variant="outline" className={`${option.status === 'ACTIVE' ? 'border-green-400 text-green-500' : 'border-red-400 text-red-700'} text-xs`}>
+                                    {option.name}
+                                    {option.additional_price > 0 && (
+                                      <span className="ml-1">+{formatPrice(option.additional_price)}</span>
+                                    )}
+                                  </Badge>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                        <MoreHorizontal className="h-3 w-3" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>Aksi Opsi</DropdownMenuLabel>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => openVariantOptionEditDialog(option)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Edit Opsi
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => openVariantOptionDeleteDialog(option)}
+                                        className="text-red-600"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" /> Hapus Opsi
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
                               ))}
-                              {variant.options.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{variant.options.length - 3} lainnya
-                                </Badge>
-                              )}
-                            </div>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => openVariantOptionAddDialog(type.id)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" /> Tambah Opsi
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {type.is_required ? (
+                            <Badge variant="secondary" className="bg-orange-300 text-white">
+                              Required
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">Opsional</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {formatDate(type.created_at)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {formatDate(variant.createdAt)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {formatDate(variant.updatedAt)}
+                            {formatDate(type.updated_at)}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -863,18 +960,18 @@ const VariantManagement = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                              <DropdownMenuLabel>Aksi Tipe Variant</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => openEditDialog(variant)}>
+                              <DropdownMenuItem onClick={() => openVariantTypeEditDialog(type)}>
                                 <Edit className="mr-2 h-4 w-4" />
-                                Edit
+                                Edit Tipe
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => openDeleteDialog(variant)}
+                              <DropdownMenuItem
+                                onClick={() => openVariantTypeDeleteDialog(type)}
                                 className="text-red-600"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
-                                Hapus
+                                Hapus Tipe
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -888,44 +985,95 @@ const VariantManagement = () => {
           </CardContent>
         </Card>
 
-        {/* Add Variant Dialog */}
-        <VariantFormDialog
-          isOpen={isAddDialogOpen}
-          onOpenChange={setIsAddDialogOpen}
-          onSubmit={handleAddVariant}
+        {/* Add/Edit Variant Type Dialog */}
+        <VariantTypeFormDialog
+          isOpen={isVariantTypeAddDialogOpen || isVariantTypeEditDialogOpen}
+          isEdit={isVariantTypeEditDialogOpen}
+          onOpenChange={(open) => {
+            setIsVariantTypeAddDialogOpen(open);
+            setIsVariantTypeEditDialogOpen(open);
+            if (!open) setSelectedVariantType(null);
+          }}
+          onSubmit={isVariantTypeEditDialogOpen ? handleEditVariantType : handleAddVariantType}
+          initialVariantType={selectedVariantType}
+          statuses={statuses}
+          formatPrice={formatPrice}
         />
 
-        {/* Edit Variant Dialog */}
-        <VariantFormDialog
-          isEdit={true}
-          isOpen={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          onSubmit={handleEditVariant}
+        {/* Add/Edit Variant Option Dialog */}
+        <VariantOptionFormDialog
+          isOpen={isVariantOptionAddDialogOpen || isVariantOptionEditDialogOpen}
+          isEdit={isVariantOptionEditDialogOpen}
+          onOpenChange={(open) => {
+            setIsVariantOptionAddDialogOpen(open);
+            setIsVariantOptionEditDialogOpen(open);
+            if (!open) {
+                setSelectedVariantOption(null);
+                setSelectedVariantType(null);
+            }
+          }}
+          onSubmit={isVariantOptionEditDialogOpen ? handleEditVariantOption : handleAddVariantOption}
+          initialVariantOption={selectedVariantOption}
+          availableVariantTypes={variantTypes}
+          statuses={statuses}
+          formatPrice={formatPrice}
         />
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        {/* Delete Confirmation Dialog for Variant Type */}
+        <Dialog open={isVariantTypeDeleteDialogOpen} onOpenChange={setIsVariantTypeDeleteDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Konfirmasi Hapus Variant</DialogTitle>
+              <DialogTitle>Konfirmasi Hapus Tipe Variant</DialogTitle>
               <DialogDescription>
-                Apakah Anda yakin ingin menghapus variant "{variantToDelete?.name}"? 
-                Tindakan ini tidak dapat dibatalkan dan akan mempengaruhi menu yang menggunakan variant ini.
+                Apakah Anda yakin ingin menghapus tipe variant "{variantTypeToDelete?.name}"?
+                Semua opsi variant di bawah tipe ini juga akan terhapus.
+                Tindakan ini tidak dapat dibatalkan.
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 pt-4">
-              <Button 
-                variant="destructive" 
-                onClick={handleDeleteVariant}
+              <Button
+                variant="destructive"
+                onClick={handleDeleteVariantType}
                 disabled={isSubmitting}
                 className="flex-1"
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Hapus Variant
+                Hapus Tipe Variant
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsDeleteDialogOpen(false)}
+              <Button
+                variant="outline"
+                onClick={() => setIsVariantTypeDeleteDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                Batal
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog for Variant Option */}
+        <Dialog open={isVariantOptionDeleteDialogOpen} onOpenChange={setIsVariantOptionDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Konfirmasi Hapus Opsi Variant</DialogTitle>
+              <DialogDescription>
+                Apakah Anda yakin ingin menghapus opsi variant "{variantOptionToDelete?.name}"?
+                Tindakan ini tidak dapat dibatalkan dan akan mempengaruhi menu yang menggunakan opsi ini.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="destructive"
+                onClick={handleDeleteVariantOption}
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Hapus Opsi Variant
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsVariantOptionDeleteDialogOpen(false)}
                 disabled={isSubmitting}
               >
                 Batal
@@ -939,4 +1087,3 @@ const VariantManagement = () => {
 };
 
 export default VariantManagement;
-
