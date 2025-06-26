@@ -122,9 +122,14 @@ const OrderHistoryPage = () => {
         queryParams.append('status', statusFilter.toUpperCase());
       }
 
+      if (queryParams) {
+        const response = await api.get(`/orders?${queryParams.toString()}`);
+        setOrders(response.data);
+      } 
 
-      const response = await api.get(`/orders?${queryParams.toString()}`);
+      const response = await api.get('/orders/');
       setOrders(response.data);
+
 
     } catch (err) {
       console.error("Failed to fetch orders:", err.response?.data || err.message);
