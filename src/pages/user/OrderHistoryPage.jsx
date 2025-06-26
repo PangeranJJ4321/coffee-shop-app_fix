@@ -248,7 +248,7 @@ const OrderHistoryPage = () => {
       const response = await api.delete(`/orders/${orderIdToCancel}`);
       if (response.status === 204) { // Status 204 No Content
         alert("Pesanan berhasil dibatalkan.");
-        fetchOrders(); // Muat ulang daftar pesanan
+        fetchOrders(); 
       } else {
         alert("Gagal membatalkan pesanan.");
       }

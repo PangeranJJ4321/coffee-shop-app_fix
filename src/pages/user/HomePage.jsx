@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '../../contexts/CartContext';
-import { useAuth } from '../../contexts/AuthContext'; // Import useAuth
+import { useAuth } from '../../contexts/AuthContext'; 
 import { 
   Coffee, 
   Star, 
@@ -20,14 +20,13 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert'; // Import Alert
 
-// Hardcode Coffee Shop ID Anda di sini
-// GANTI DENGAN UUID ASLI DARI DATABASE ANDA, CONTOH: 'ed634a6f-c12d-4ed4-8975-1926a2ee4a43'
+
 const COFFEE_SHOP_ID = "ed634a6f-c12d-4ed4-8975-1926a2ee4a43"; 
 
 const HomePage = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { api, user, isAuthenticated, toggleFavorite } = useAuth(); // Ambil api dan user dari AuthContext
+  const { api, user, isAuthenticated, toggleFavorite } = useAuth(); 
 
   const [coffeeShopInfo, setCoffeeShopInfo] = useState(null);
   const [operatingHours, setOperatingHours] = useState([]);

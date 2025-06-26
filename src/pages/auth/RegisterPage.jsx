@@ -10,11 +10,11 @@ import { Coffee, Eye, EyeOff, Loader2, CheckCircle, XCircle } from 'lucide-react
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
-  
+  const {register} = useAuth();
+
   const [formData, setFormData] = useState({
     email: '',
-    username: '', // Konsisten menggunakan username
+    username: '', 
     password: '',
     confirmPassword: ''
   });

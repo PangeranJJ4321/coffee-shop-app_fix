@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-const BASE_API_URL = 'http://127.0.0.1:8000/api/v1'; 
+const BASE_API_URL = 'http://127.0.0.1:8000/api/v1/'; 
 
 const api = axios.create({
   baseURL: BASE_API_URL,
@@ -52,6 +52,7 @@ export const AuthProvider = ({ children }) => {
       clearAuthData();
       return null;
     }
+    
     try {
       // Panggil endpoint /users/me untuk mendapatkan data user lengkap
       const response = await api.get('/users/me');

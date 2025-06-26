@@ -93,16 +93,11 @@ const CoffeeDetailPage = () => {
                         initialPrice += defaultVariant.additional_price;
                     }
 
-                    // For optional variants, if no default is set,
-                    // we want the select to show its placeholder, meaning no selection.
-                    // This means `selectedVariants[variantTypeId]` should be `undefined` initially
-                    // if there's no default and it's not required.
+                
                     else if (variantList[0]?.is_required && variantList.length > 0) {
                         initialVariants[variantList[0].variant_type_id] = variantList[0].id;
                         initialPrice += variantList[0].additional_price;
                     }
-                    // If not required and no default, leave it undefined in initialVariants
-                    // so the Select component shows its placeholder.
                 });
             }
             setSelectedVariants(initialVariants);
