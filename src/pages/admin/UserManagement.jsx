@@ -829,7 +829,7 @@ const UserManagement = () => {
                           <div className="space-y-1 text-sm">
                             <p>{user.totalOrders} pesanan</p>
                             <p className="text-muted-foreground">
-                              {formatPrice(user.totalSpent)}
+                              {formatPrice(user.total_spent_amount)}
                             </p>
                           </div>
                         </TableCell>

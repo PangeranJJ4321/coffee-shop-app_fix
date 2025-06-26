@@ -37,14 +37,13 @@ import {
   ChevronDown // Untuk ikon dropdown
 } from 'lucide-react';
 
-// Hardcode Coffee Shop ID Anda di sini
-// GANTI DENGAN UUID ASLI DARI DATABASE ANDA, CONTOH: 'ed634a6f-c12d-4ed4-8975-1926a2ee4a43'
+
 const COFFEE_SHOP_ID = "ed634a6f-c12d-4ed4-8975-1926a2ee4a43";
 
 const MenuPage = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { api, user, isAuthenticated, toggleFavorite } = useAuth(); // Ambil api dan user
+  const { api, user, isAuthenticated, toggleFavorite } = useAuth(); 
 
   const [coffees, setCoffees] = useState([]); // Data asli yang difetch dari API
   const [filteredCoffees, setFilteredCoffees] = useState([]); // Data yang ditampilkan setelah filter lokal

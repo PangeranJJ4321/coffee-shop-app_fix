@@ -214,7 +214,7 @@ const ProfilePage = () => {
         setError('');
         setSuccess('');
         try {
-            const result = await toggleFavorite(coffeeId, isCurrentlyFavorite); // Panggil dari AuthContext
+            const result = await toggleFavorite(coffeeId, isCurrentlyFavorite); 
             if (result.success) {
                 setSuccess(isCurrentlyFavorite ? 'Favorit dihapus!' : 'Favorit ditambahkan!');
                 setTimeout(() => setSuccess(''), 2000);
