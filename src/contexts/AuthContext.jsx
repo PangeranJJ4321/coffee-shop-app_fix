@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-const BASE_API_URL = 'http://127.0.0.1:8000/api/v1';
+const BASE_API_URL = 'coffee-shop-backend-fastapi-production.up.railway.app/api/v1';
 
 const api = axios.create({
   baseURL :BASE_API_URL,
