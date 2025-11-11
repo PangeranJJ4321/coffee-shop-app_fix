@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-const BASE_API_URL = 'https://coffee-shop-backend-fastapi-production.up.railway.app/api/v1'; 
+const BASE_API_URL = import.meta.env.VITE_BASE_API_URL; 
 
 const api = axios.create({
   baseURL: BASE_API_URL,
